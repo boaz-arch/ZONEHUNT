@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
+import 'lobby_screen.dart';
+import 'join_screen.dart';
 
 void main() {
   runApp(const ZoneHuntApp());
@@ -24,10 +27,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ZoneHunt'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('ZoneHunt'), centerTitle: true),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -36,17 +36,30 @@ class HomeScreen extends StatelessWidget {
             children: [
               const Text(
                 'ZONEHUNT',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 40),
               SizedBox(
                 width: 250,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final code = await ApiService.createGame("Player");
+
+                    if (code == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Failed to create game')),
+                      );
+                      return;
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LobbyScreen(gameCode: code),
+                      ),
+                    );
+                  },
                   child: const Text('Create Game'),
                 ),
               ),
@@ -55,7 +68,12 @@ class HomeScreen extends StatelessWidget {
                 width: 250,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const JoinScreen()),
+                    );
+                  },
                   child: const Text('Join Game'),
                 ),
               ),
