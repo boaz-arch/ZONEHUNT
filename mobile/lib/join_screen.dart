@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
 import 'lobby_screen.dart';
+import 'player_data.dart';
 
 class JoinScreen extends StatefulWidget {
   const JoinScreen({super.key});
@@ -19,7 +20,7 @@ class _JoinScreenState
     final success =
         await ApiService.joinGame(
       codeController.text.toUpperCase(),
-      "Boaz",
+      PlayerData.playerName,
     );
 
     if (!success) {

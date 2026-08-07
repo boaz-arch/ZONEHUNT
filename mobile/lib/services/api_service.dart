@@ -73,4 +73,22 @@ class ApiService {
       return null;
     }
   }
+
+  static Future<void> updateSettings(
+  String gameCode,
+  Map settings,
+  ) async {
+    await http.post(
+      Uri.parse(
+        '$baseUrl/update-settings',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'gameCode': gameCode,
+        'settings': settings,
+      }),
+    );
+  }
 }
