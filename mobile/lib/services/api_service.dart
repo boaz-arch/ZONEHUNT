@@ -91,4 +91,21 @@ class ApiService {
       }),
     );
   }
+
+  static Future<void> startGame(
+  String gameCode,
+  ) async {
+    await http.post(
+      Uri.parse(
+        '$baseUrl/start-game',
+      ),
+      headers: {
+        'Content-Type':
+            'application/json',
+      },
+      body: jsonEncode({
+        'gameCode': gameCode,
+      }),
+    );
+  }
 }

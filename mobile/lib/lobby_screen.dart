@@ -4,6 +4,7 @@ import 'services/api_service.dart';
 import 'services/socket_service.dart';
 import 'settings_screen.dart';
 import 'player_data.dart';
+import 'hide_phase_screen.dart';
 
 class LobbyScreen extends StatefulWidget {
   final String gameCode;
@@ -51,6 +52,25 @@ class _LobbyScreenState
                 player["host"] == true,
           );
         });
+      },
+    );
+
+    SocketService.socket.on(
+      "gameStarted",
+      (data) {
+        final gameSettings =
+            data["settings"];
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                HidePhaseScreen(
+              hideMinutes:
+                  gameSettings["hideTime"],
+            ),
+          ),
+        );
       },
     );
   }
@@ -263,7 +283,11 @@ class _LobbyScreenState
               ),
 
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () async {
+                  await ApiService.startGame(
+                    widget.gameCode,
+                  );
+                },
                 child: const Text(
                   "Start Game",
                 ),
