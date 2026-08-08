@@ -15,195 +15,406 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState
     extends State<SettingsScreen> {
+  late double gameDuration;
+  late double hideTime;
+  late double hunterCount;
+  late double zoneCount;
 
-  late TextEditingController gameDuration;
-  late TextEditingController hideTime;
-  late TextEditingController hunterCount;
-  late TextEditingController zoneCount;
-  late TextEditingController startRadius;
-  late TextEditingController finalRadius;
-  late TextEditingController zoneWaitTime;
-  late TextEditingController zoneShrinkTime;
-  late TextEditingController redZoneRadius;
-  late TextEditingController redZoneShiftTime;
+  late double startRadius;
+  late double finalRadius;
+
+  late double zoneWaitTime;
+  late double zoneShrinkTime;
+
+  late double redZoneRadius;
+  late double redZoneShiftTime;
+
+  bool anonymousMode = false;
+  bool randomFutureZones = true;
 
   @override
   void initState() {
     super.initState();
 
-    gameDuration = TextEditingController(
-      text:
-          widget.settings["gameDuration"]
-              .toString(),
-    );
+    gameDuration =
+        (widget.settings["gameDuration"] ?? 60)
+            .toDouble();
 
-    hideTime = TextEditingController(
-      text:
-          widget.settings["hideTime"]
-              .toString(),
-    );
+    hideTime =
+        (widget.settings["hideTime"] ?? 5)
+            .toDouble();
 
-    hunterCount = TextEditingController(
-      text:
-          widget.settings["hunterCount"]
-              .toString(),
-    );
+    hunterCount =
+        (widget.settings["hunterCount"] ?? 2)
+            .toDouble();
 
-    zoneCount = TextEditingController(
-      text:
-          widget.settings["zoneCount"]
-              .toString(),
-    );
+    zoneCount =
+        (widget.settings["zoneCount"] ?? 5)
+            .toDouble();
 
-    startRadius = TextEditingController(
-      text:
-          widget.settings["startRadius"]
-              .toString(),
-    );
+    startRadius =
+        (widget.settings["startRadius"] ?? 1000)
+            .toDouble();
 
-    finalRadius = TextEditingController(
-      text:
-          widget.settings["finalRadius"]
-              .toString(),
-    );
+    finalRadius =
+        (widget.settings["finalRadius"] ?? 100)
+            .toDouble();
 
     zoneWaitTime =
-        TextEditingController(
-      text:
-          widget.settings["zoneWaitTime"]
-              .toString(),
-    );
+        (widget.settings["zoneWaitTime"] ?? 5)
+            .toDouble();
 
     zoneShrinkTime =
-        TextEditingController(
-      text:
-          widget.settings["zoneShrinkTime"]
-              .toString(),
-    );
+        (widget.settings["zoneShrinkTime"] ?? 3)
+            .toDouble();
 
     redZoneRadius =
-        TextEditingController(
-      text:
-          widget.settings["redZoneRadius"]
-              .toString(),
-    );
+        (widget.settings["redZoneRadius"] ?? 50)
+            .toDouble();
 
     redZoneShiftTime =
-        TextEditingController(
-      text:
-          widget.settings[
-                  "redZoneShiftTime"]
-              .toString(),
-    );
+        (widget.settings["redZoneShiftTime"] ?? 120)
+            .toDouble();
+
+    anonymousMode =
+        widget.settings["anonymousMode"] ??
+            false;
+
+    randomFutureZones =
+        widget.settings[
+                "randomFutureZones"] ??
+            true;
   }
 
-  Widget field(
-    String label,
-    TextEditingController controller,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: controller,
-        keyboardType:
-            TextInputType.number,
-        decoration: InputDecoration(
-          labelText: label,
-          border:
-              const OutlineInputBorder(),
+  Widget buildSlider({
+    required String title,
+    required double value,
+    required double min,
+    required double max,
+    required String suffix,
+    required ValueChanged<double>
+        onChanged,
+  }) {
+    return Card(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              "$title: ${value.round()}$suffix",
+              style: const TextStyle(
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+            Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions:
+                  (max - min).round(),
+              onChanged: onChanged,
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget zonePreview() {
+    final zones = zoneCount.round();
+
+    final radii = <double>[];
+
+    if (zones == 1) {
+      radii.add(startRadius);
+    } else {
+      for (int i = 0;
+          i < zones;
+          i++) {
+        final ratio =
+            i / (zones - 1);
+
+        final radius =
+            startRadius -
+                ((startRadius -
+                        finalRadius) *
+                    ratio);
+
+        radii.add(radius);
+      }
+    }
+
+    return Card(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Zone Size Preview",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+            const SizedBox(
+              height: 10,
+            ),
+            ...List.generate(
+              radii.length,
+              (index) => Text(
+                "Zone ${index + 1} → ${radii[index].round()}m",
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  int estimatedGameLength() {
+    return hideTime.round() +
+        (zoneWaitTime.round() *
+            zoneCount.round()) +
+        (zoneShrinkTime.round() *
+            zoneCount.round());
+  }
+
   @override
   Widget build(BuildContext context) {
+    final estimatedDuration =
+        estimatedGameLength();
+
     return Scaffold(
       appBar: AppBar(
         title:
             const Text("Game Settings"),
       ),
-      body: Padding(
+      body: ListView(
         padding:
-            const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            field(
-                "Game Duration",
-                gameDuration),
-            field(
-                "Hide Time",
-                hideTime),
-            field(
-                "Hunter Count",
-                hunterCount),
-            field(
-                "Zone Count",
-                zoneCount),
-            field(
-                "Start Radius",
-                startRadius),
-            field(
-                "Final Radius",
-                finalRadius),
-            field(
-                "Zone Wait Time",
-                zoneWaitTime),
-            field(
-                "Zone Shrink Time",
-                zoneShrinkTime),
-            field(
-                "Red Zone Radius",
-                redZoneRadius),
-            field(
-                "Red Zone Shift Time",
-                redZoneShiftTime),
+            const EdgeInsets.all(12),
+        children: [
+          buildSlider(
+            title: "Game Duration",
+            value: gameDuration,
+            min: 5,
+            max: 120,
+            suffix: " min",
+            onChanged: (v) {
+              setState(() {
+                gameDuration = v;
+              });
+            },
+          ),
 
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  {
-                    "gameDuration":
-                        int.parse(
-                            gameDuration.text),
-                    "hideTime":
-                        int.parse(
-                            hideTime.text),
-                    "hunterCount":
-                        int.parse(
-                            hunterCount.text),
-                    "zoneCount":
-                        int.parse(
-                            zoneCount.text),
-                    "startRadius":
-                        int.parse(
-                            startRadius.text),
-                    "finalRadius":
-                        int.parse(
-                            finalRadius.text),
-                    "zoneWaitTime":
-                        int.parse(
-                            zoneWaitTime.text),
-                    "zoneShrinkTime":
-                        int.parse(
-                            zoneShrinkTime.text),
-                    "redZoneRadius":
-                        int.parse(
-                            redZoneRadius.text),
-                    "redZoneShiftTime":
-                        int.parse(
-                            redZoneShiftTime
-                                .text),
-                  },
-                );
-              },
-              child:
-                  const Text("Save"),
-            )
-          ],
-        ),
+          buildSlider(
+            title: "Hide Time",
+            value: hideTime,
+            min: 0,
+            max: 30,
+            suffix: " min",
+            onChanged: (v) {
+              setState(() {
+                hideTime = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Hunters",
+            value: hunterCount,
+            min: 1,
+            max: 10,
+            suffix: "",
+            onChanged: (v) {
+              setState(() {
+                hunterCount = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Zone Count",
+            value: zoneCount,
+            min: 1,
+            max: 20,
+            suffix: "",
+            onChanged: (v) {
+              setState(() {
+                zoneCount = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Starting Radius",
+            value: startRadius,
+            min: 50,
+            max: 5000,
+            suffix: " m",
+            onChanged: (v) {
+              setState(() {
+                startRadius = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Final Radius",
+            value: finalRadius,
+            min: 10,
+            max: 500,
+            suffix: " m",
+            onChanged: (v) {
+              setState(() {
+                finalRadius = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Zone Wait Time",
+            value: zoneWaitTime,
+            min: 0,
+            max: 30,
+            suffix: " min",
+            onChanged: (v) {
+              setState(() {
+                zoneWaitTime = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Zone Shrink Time",
+            value: zoneShrinkTime,
+            min: 1,
+            max: 20,
+            suffix: " min",
+            onChanged: (v) {
+              setState(() {
+                zoneShrinkTime = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Red Zone Radius",
+            value: redZoneRadius,
+            min: 10,
+            max: 500,
+            suffix: " m",
+            onChanged: (v) {
+              setState(() {
+                redZoneRadius = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Red Zone Shift",
+            value: redZoneShiftTime,
+            min: 30,
+            max: 300,
+            suffix: " sec",
+            onChanged: (v) {
+              setState(() {
+                redZoneShiftTime = v;
+              });
+            },
+          ),
+
+          SwitchListTile(
+            title:
+                const Text("Anonymous Mode"),
+            subtitle: const Text(
+              "Names visible in lobby, hidden during game",
+            ),
+            value: anonymousMode,
+            onChanged: (v) {
+              setState(() {
+                anonymousMode = v;
+              });
+            },
+          ),
+
+          SwitchListTile(
+            title: const Text(
+              "Random Future Zones",
+            ),
+            value: randomFutureZones,
+            onChanged: (v) {
+              setState(() {
+                randomFutureZones = v;
+              });
+            },
+          ),
+
+          zonePreview(),
+
+          Card(
+            color:
+                estimatedDuration >
+                        gameDuration
+                            .round()
+                    ? Colors.red.shade700
+                    : Colors.green
+                        .shade700,
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(
+                      12),
+              child: Text(
+                "Estimated Match Length: $estimatedDuration minutes",
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                {
+                  "gameDuration":
+                      gameDuration.round(),
+                  "hideTime":
+                      hideTime.round(),
+                  "hunterCount":
+                      hunterCount.round(),
+                  "zoneCount":
+                      zoneCount.round(),
+                  "startRadius":
+                      startRadius.round(),
+                  "finalRadius":
+                      finalRadius.round(),
+                  "zoneWaitTime":
+                      zoneWaitTime.round(),
+                  "zoneShrinkTime":
+                      zoneShrinkTime.round(),
+                  "redZoneRadius":
+                      redZoneRadius.round(),
+                  "redZoneShiftTime":
+                      redZoneShiftTime.round(),
+                  "anonymousMode":
+                      anonymousMode,
+                  "randomFutureZones":
+                      randomFutureZones,
+                },
+              );
+            },
+            child:
+                const Text("Save"),
+          ),
+        ],
       ),
     );
   }
