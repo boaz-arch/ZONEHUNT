@@ -4,6 +4,7 @@ import 'services/api_service.dart';
 import 'lobby_screen.dart';
 import 'join_screen.dart';
 import 'player_data.dart';
+import 'package:geolocator/geolocator.dart';
 
 void main() {
   runApp(const ZoneHuntApp());
@@ -51,9 +52,17 @@ class _HomeScreenState
     PlayerData.playerName =
         nameController.text.trim();
 
+    await Geolocator.requestPermission();
+
+    final position =
+        await Geolocator
+            .getCurrentPosition();
+
     final code =
         await ApiService.createGame(
       PlayerData.playerName,
+      position.latitude,
+      position.longitude,
     );
 
     if (code == null) {

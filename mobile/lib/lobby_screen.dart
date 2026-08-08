@@ -101,8 +101,19 @@ class _LobbyScreenState
                 HidePhaseScreen(
               hidePhaseEndsAt:
                   data["hidePhaseEndsAt"],
+
               role:
                   myPlayer["role"],
+
+              centerLat:
+                  data["zone"]["centerLat"],
+
+              centerLng:
+                  data["zone"]["centerLng"],
+
+              radius:
+                  (data["settings"]["startRadius"])
+                      .toDouble(),
             ),
           ),
         );
@@ -218,7 +229,10 @@ class _LobbyScreenState
       context,
       MaterialPageRoute(
         builder: (_) =>
-            const ZonePickerScreen(),
+          ZonePickerScreen(
+            centerLat: centerLat,
+            centerLng: centerLng,
+          ),
       ),
     );
 

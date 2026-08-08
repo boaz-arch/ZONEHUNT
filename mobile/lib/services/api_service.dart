@@ -7,6 +7,8 @@ class ApiService {
 
   static Future<String?> createGame(
     String playerName,
+    double lat,
+    double lng,
   ) async {
     try {
       final response = await http.post(
@@ -16,6 +18,8 @@ class ApiService {
         },
         body: jsonEncode({
           'playerName': playerName,
+          'lat': lat,
+          'lng': lng,
         }),
       );
 

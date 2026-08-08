@@ -3,7 +3,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 class ZonePickerScreen extends StatefulWidget {
-  const ZonePickerScreen({super.key});
+  final double centerLat;
+  final double centerLng;
+
+  const ZonePickerScreen({
+    super.key,
+    required this.centerLat,
+    required this.centerLng,
+  });
 
   @override
   State<ZonePickerScreen> createState() =>
@@ -12,11 +19,17 @@ class ZonePickerScreen extends StatefulWidget {
 
 class _ZonePickerScreenState
     extends State<ZonePickerScreen> {
-  LatLng selectedCenter =
-      const LatLng(
-    31.7683,
-    35.2137,
-  );
+  late LatLng selectedCenter;
+
+  @override
+  void initState() {
+    super.initState();
+
+    selectedCenter = LatLng(
+      widget.centerLat,
+      widget.centerLng,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +82,9 @@ class _ZonePickerScreenState
             selectedCenter,
           );
         },
-        label: const Text("Save"),
+        label: const Text(
+          "Save",
+        ),
       ),
     );
   }
