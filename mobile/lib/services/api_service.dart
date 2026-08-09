@@ -202,4 +202,31 @@ class ApiService {
       print(e);
     }
   }
+
+  static Future<void> updatePosition(
+    String gameCode,
+    String playerName,
+    double lat,
+    double lng,
+  ) async {
+    try {
+      await http.post(
+        Uri.parse(
+          '$baseUrl/update-position',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'gameCode': gameCode,
+          'playerName': playerName,
+          'lat': lat,
+          'lng': lng,
+        }),
+      );
+    } catch (e) {
+      print("UPDATE POSITION ERROR");
+      print(e);
+    }
+  }
 }

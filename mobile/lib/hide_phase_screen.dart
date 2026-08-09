@@ -4,14 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'services/api_service.dart';
+import 'services/socket_service.dart';
+import 'player_data.dart';
+import 'gameplay_screen.dart';
 
 class HidePhaseScreen extends StatefulWidget {
   final int hidePhaseEndsAt;
   final String role;
+  final String gameCode;
 
   final double centerLat;
   final double centerLng;
   final double radius;
+
+  final bool anonymousMode;
 
   const HidePhaseScreen({
     super.key,
@@ -20,6 +27,8 @@ class HidePhaseScreen extends StatefulWidget {
     required this.centerLat,
     required this.centerLng,
     required this.radius,
+    required this.gameCode,
+    required this.anonymousMode,
   });
 
   @override
@@ -27,6 +36,8 @@ class HidePhaseScreen extends StatefulWidget {
 }
 
 class _HidePhaseScreenState extends State<HidePhaseScreen> {
+  List teammates = [];
+
   int secondsRemaining = 0;
 
   Timer? timer;
@@ -49,10 +60,29 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
       if (secondsRemaining <= 0) {
         timer.cancel();
 
-        ScaffoldMessenger.of(
+        Navigator.pushReplacement(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Hide Phase Ended")));
+          MaterialPageRoute(
+            builder: (_) => GameplayScreen(
+              gameCode: widget.gameCode,
+              role: widget.role,
+              centerLat: widget.centerLat,
+              centerLng: widget.centerLng,
+              radius: widget.radius,
+              anonymousMode: widget.anonymousMode,
+            ),
+          ),
+        );
+
+        return;
       }
+    });
+
+    SocketService.socket.on("positionsUpdated", (players) {
+      setState(() {
+        teammates = (players as List);
+        print("Gameplay teammates: ${teammates.length}");
+      });
     });
   }
 
@@ -73,6 +103,12 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
       setState(() {
         currentPosition = position;
       });
+      ApiService.updatePosition(
+        widget.gameCode,
+        PlayerData.playerName,
+        position.latitude,
+        position.longitude,
+      );
     });
   }
 
@@ -142,6 +178,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
 
   @override
   void dispose() {
+    SocketService.socket.off("positionsUpdated");
     timer?.cancel();
     super.dispose();
   }
@@ -276,7 +313,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
                         point: LatLng(widget.centerLat, widget.centerLng),
                         radius: widget.radius,
                         useRadiusInMeter: true,
-                        color: Colors.blue.withOpacity(0.20),
+                        color: Colors.blue.withValues(alpha: 0.20),
                         borderColor: Colors.blue,
                         borderStrokeWidth: 3,
                       ),
@@ -298,14 +335,68 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
 
                       Marker(
                         point: playerPoint,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.person_pin_circle,
-                          color: Colors.green,
-                          size: 40,
+                        width: 80,
+                        height: 80,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.person_pin_circle,
+                              color: Colors.green,
+                              size: 40,
+                            ),
+                            const Text(
+                              "You",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      ...teammates
+                          .where(
+                            (p) =>
+                                p["name"] != PlayerData.playerName &&
+                                p["position"] != null &&
+                                p["position"]["lat"] != null &&
+                                p["position"]["lng"] != null,
+                          )
+                          .map(
+                            (p) => Marker(
+                              point: LatLng(
+                                p["position"]["lat"],
+                                p["position"]["lng"],
+                              ),
+                              width: 80,
+                              height: 80,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.people,
+                                    color: widget.role == "hunter"
+                                        ? Colors.red
+                                        : Colors.green,
+                                    size: 35,
+                                  ),
+
+                                  Text(
+                                    widget.anonymousMode
+                                        ? "${p["role"] == "hunter" ? "Hunter" : "Hider"} ${String.fromCharCode(65 + teammates.indexOf(p))}"
+                                        : p["name"],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                     ],
                   ),
                 ],

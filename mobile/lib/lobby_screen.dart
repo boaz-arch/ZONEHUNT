@@ -98,23 +98,18 @@ class _LobbyScreenState
           context,
           MaterialPageRoute(
             builder: (_) =>
-                HidePhaseScreen(
-              hidePhaseEndsAt:
-                  data["hidePhaseEndsAt"],
+              HidePhaseScreen(
+                gameCode: widget.gameCode,
+                hidePhaseEndsAt: data["hidePhaseEndsAt"],
+                role: myPlayer["role"],
+                centerLat: data["zone"]["centerLat"],
+                centerLng: data["zone"]["centerLng"],
+                radius: (data["settings"]["startRadius"])
+                    .toDouble(),
 
-              role:
-                  myPlayer["role"],
-
-              centerLat:
-                  data["zone"]["centerLat"],
-
-              centerLng:
-                  data["zone"]["centerLng"],
-
-              radius:
-                  (data["settings"]["startRadius"])
-                      .toDouble(),
-            ),
+                anonymousMode: data["settings"]["anonymousMode"]
+                  ?? false,
+              )
           ),
         );
       },
