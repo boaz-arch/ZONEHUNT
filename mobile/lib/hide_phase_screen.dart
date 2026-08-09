@@ -127,7 +127,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
       });
       ApiService.updatePosition(
         widget.gameCode,
-        PlayerData.playerName,
+        PlayerData.playerId,
         position.latitude,
         position.longitude,
       );
@@ -199,7 +199,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
 
   List getVisibleTeammates() {
     return teammates.where((p) {
-      return p["name"] != PlayerData.playerName &&
+      return p["id"] != PlayerData.playerId &&
           p["role"] == widget.role &&
           p["position"] != null &&
           p["position"]["lat"] != null &&

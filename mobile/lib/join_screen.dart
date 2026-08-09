@@ -28,19 +28,30 @@ class _JoinScreenState extends State<JoinScreen> {
 
     setState(() => joining = true);
 
-    final success = await ApiService.joinGame(code, PlayerData.playerName);
+    final result =
+      await ApiService.joinGame(
+        code,
+        PlayerData.playerName,
+      );
 
     setState(() => joining = false);
 
-    if (!success) {
+    if (result == null) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Game not found")),
+        const SnackBar(
+          content: Text("Game not found"),
+        ),
       );
+
       return;
     }
 
-    await saveSession(code, PlayerData.playerName);
+    PlayerData.playerId = result["playerId"];
+
+
+    await saveSession(code, PlayerData.playerName, PlayerData.playerId);
 
     if (!mounted) return;
 

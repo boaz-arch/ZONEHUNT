@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const { randomUUID } = require("crypto");
 
 const app = express();
 
@@ -102,6 +103,7 @@ app.post("/create-game", (req, res) => {
 
     players: [
         {
+            id: randomUUID(),
             name: playerName,
             host: true,
 
@@ -114,11 +116,12 @@ app.post("/create-game", (req, res) => {
             },
         },
     ],
-};
+  };
 
   res.json({
     success: true,
     gameCode,
+    playerId: games[gameCode].players[0].id,
   });
 });
 
@@ -135,18 +138,20 @@ app.post("/join-game", (req, res) => {
     });
   }
 
-    game.players.push({
-        name: playerName,
-        host: false,
+    const player = {
+      id: randomUUID(),
+      name: playerName,
+      host: false,
+      role: null,
+      caught: false,
+      position: {
+        lat: null,
+        lng: null,
+        lastUpdate: null,
+      },
+    };
 
-        role: null,
-
-        position: {
-            lat: null,
-            lng: null,
-            lastUpdate: null,
-        },
-    });
+    game.players.push(player);
 
   io.to(gameCode).emit(
     "lobbyUpdated",
@@ -155,6 +160,7 @@ app.post("/join-game", (req, res) => {
 
   res.json({
     success: true,
+    playerId: player.id,
   });
 });
 
@@ -188,7 +194,7 @@ app.post(
 
     const {
       gameCode,
-      playerName,
+      playerId,
       lat,
       lng,
     } = req.body;
@@ -203,7 +209,7 @@ app.post(
 
     const player =
       game.players.find(
-        (p) => p.name === playerName,
+        p => p.id === playerId
       );
 
     if (!player) {

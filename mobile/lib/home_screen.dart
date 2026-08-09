@@ -34,11 +34,15 @@ class _HomeScreenState extends State<HomeScreen> {
     await Geolocator.requestPermission();
     final position = await Geolocator.getCurrentPosition();
 
-    final code = await ApiService.createGame(
+    final result = await ApiService.createGame(
       PlayerData.playerName,
       position.latitude,
       position.longitude,
     );
+
+    final code = result?["gameCode"];
+    final playerId = result?["playerId"];
+    PlayerData.playerId = playerId ?? "";
 
     setState(() => creating = false);
 
@@ -50,7 +54,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    await saveSession(code, PlayerData.playerName);
+    await saveSession(
+      code,
+      PlayerData.playerName,
+      playerId,
+    );
 
     if (!mounted) return;
 

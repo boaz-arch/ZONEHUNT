@@ -74,8 +74,8 @@ class _LobbyScreenState
 
           isHost = players.any(
             (player) =>
-                player["name"] ==
-                    PlayerData.playerName &&
+                player["id"] ==
+                    PlayerData.playerId &&
                 player["host"] == true,
           );
         });
@@ -90,8 +90,8 @@ class _LobbyScreenState
             (data["players"] as List)
                 .firstWhere(
           (player) =>
-              player["name"] ==
-              PlayerData.playerName,
+              player["id"] ==
+              PlayerData.playerId,
         );
 
         Navigator.push(
@@ -138,8 +138,8 @@ class _LobbyScreenState
 
       isHost = players.any(
         (player) =>
-            player["name"] ==
-                PlayerData.playerName &&
+            player["id"] ==
+                PlayerData.playerId &&
             player["host"] == true,
       );
     });

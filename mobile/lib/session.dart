@@ -10,17 +10,23 @@ import 'gameplay_screen.dart';
 
 const _codeKey = 'activeGameCode';
 const _nameKey = 'activePlayerName';
+const _playerIdKey = 'activePlayerId';
 
-Future<void> saveSession(String gameCode, String playerName) async {
+Future<void> saveSession(String gameCode,
+                         String playerName, 
+                         String playerId,
+                         ) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(_codeKey, gameCode);
   await prefs.setString(_nameKey, playerName);
+  await prefs.setString(_playerIdKey, playerId);
 }
 
 Future<void> clearSession() async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.remove(_codeKey);
   await prefs.remove(_nameKey);
+  await prefs.remove(_playerIdKey);
 }
 
 /// Checks for a saved game session and, if one exists and the game is
@@ -31,12 +37,15 @@ Future<Widget> resolveStartScreen() async {
   final prefs = await SharedPreferences.getInstance();
   final code = prefs.getString(_codeKey);
   final name = prefs.getString(_nameKey);
+  final playerId =
+    prefs.getString(_playerIdKey);
 
   if (code == null || name == null) {
     return const HomeScreen();
   }
 
   PlayerData.playerName = name;
+  PlayerData.playerId = playerId ?? "";
 
   final state = await ApiService.getGameState(code, name);
 

@@ -65,7 +65,7 @@ class _GameplayScreenState extends State<GameplayScreen>
         teammates = (players as List);
 
         final me = teammates.firstWhere(
-          (p) => p["name"] == PlayerData.playerName,
+          (p) => p["id"] == PlayerData.playerId,
           orElse: () => null,
         );
 
@@ -79,7 +79,7 @@ class _GameplayScreenState extends State<GameplayScreen>
       setState(() {
         teammates = (data["players"] as List);
 
-        if (data["playerName"] == PlayerData.playerName) {
+        if (data["playerId"] == PlayerData.playerId) {
           isCaught = true;
         }
       });
@@ -150,7 +150,7 @@ class _GameplayScreenState extends State<GameplayScreen>
       teammates = positions;
 
       final me = teammates.firstWhere(
-        (p) => p["name"] == PlayerData.playerName,
+        (p) => p["id"] == PlayerData.playerId,
         orElse: () => null,
       );
 
@@ -179,7 +179,7 @@ class _GameplayScreenState extends State<GameplayScreen>
       });
       ApiService.updatePosition(
         widget.gameCode,
-        PlayerData.playerName,
+        PlayerData.playerId,
         position.latitude,
         position.longitude,
       );
@@ -192,7 +192,7 @@ class _GameplayScreenState extends State<GameplayScreen>
     setState(() => markingCaught = true);
 
     final success =
-        await ApiService.markCaught(widget.gameCode, PlayerData.playerName);
+        await ApiService.markCaught(widget.gameCode, PlayerData.playerId);
 
     if (!mounted) return;
 
@@ -270,7 +270,7 @@ class _GameplayScreenState extends State<GameplayScreen>
   // standing inside the red zone, in which case they're exposed to everyone.
   List getVisibleTeammates() {
     return teammates.where((p) {
-      final samePlayer = p["name"] == PlayerData.playerName;
+      final samePlayer = p["id"] == PlayerData.playerId;
       final hasPos = p["position"] != null &&
           p["position"]["lat"] != null &&
           p["position"]["lng"] != null;

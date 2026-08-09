@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 class ApiService {
   static const String baseUrl = 'http://10.10.0.10:3000';
 
-  static Future<String?> createGame(
+  static Future<Map<String, dynamic>?> createGame(
     String playerName,
     double lat,
     double lng,
@@ -13,16 +13,12 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/create-game'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'playerName': playerName,
-          'lat': lat,
-          'lng': lng,
-        }),
+        body: jsonEncode({'playerName': playerName, 'lat': lat, 'lng': lng}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data["gameCode"];
+        return data as Map<String, dynamic>;
       }
 
       return null;
@@ -33,22 +29,27 @@ class ApiService {
     }
   }
 
-  static Future<bool> joinGame(String code, String playerName) async {
+  static Future<Map<String, dynamic>?> joinGame(
+    String code,
+    String playerName,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/join-game'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'gameCode': code,
-          'playerName': playerName,
-        }),
+        body: jsonEncode({'gameCode': code, 'playerName': playerName}),
       );
 
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data as Map<String, dynamic>;
+      }
+
+      return null;
     } catch (e) {
       print("JOIN GAME ERROR");
       print(e);
-      return false;
+      return null;
     }
   }
 
@@ -97,10 +98,7 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/update-settings'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'gameCode': gameCode,
-          'settings': settings,
-        }),
+        body: jsonEncode({'gameCode': gameCode, 'settings': settings}),
       );
 
       print("UPDATE SETTINGS RESPONSE: ${response.statusCode}");
@@ -151,7 +149,7 @@ class ApiService {
 
   static Future<void> updatePosition(
     String gameCode,
-    String playerName,
+    String playerIdentifier,
     double lat,
     double lng,
   ) async {
@@ -161,7 +159,7 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'gameCode': gameCode,
-          'playerName': playerName,
+          'playerId': playerIdentifier,
           'lat': lat,
           'lng': lng,
         }),
@@ -177,7 +175,9 @@ class ApiService {
   /// socket event to know who else is in the game.
   static Future<List?> getPositions(String gameCode) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/positions/$gameCode'));
+      final response = await http.get(
+        Uri.parse('$baseUrl/positions/$gameCode'),
+      );
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as List;
@@ -197,10 +197,7 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/mark-caught'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'gameCode': gameCode,
-          'playerName': playerName,
-        }),
+        body: jsonEncode({'gameCode': gameCode, 'playerName': playerName}),
       );
 
       return response.statusCode == 200;
