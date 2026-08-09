@@ -46,6 +46,8 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
 
   final MapController mapController = MapController();
 
+  bool navigatedToGameplay = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,36 +55,56 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
     updateTimer();
 
     startGps();
+    loadInitialTeammates();
 
     timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       updateTimer();
 
+      // Local countdown is just a UI convenience; the server is the source
+      // of truth and will push "gameplayStarted" independently.
       if (secondsRemaining <= 0) {
         timer.cancel();
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GameplayScreen(
-              gameCode: widget.gameCode,
-              role: widget.role,
-              centerLat: widget.centerLat,
-              centerLng: widget.centerLng,
-              radius: widget.radius,
-              anonymousMode: widget.anonymousMode,
-            ),
-          ),
-        );
-
-        return;
       }
     });
 
     SocketService.socket.on("positionsUpdated", (players) {
       setState(() {
         teammates = (players as List);
-        print("Gameplay teammates: ${teammates.length}");
       });
+    });
+
+    // Server-authoritative transition — fires even if this client's local
+    // countdown drifted or it just reconnected moments before the switch.
+    SocketService.socket.on("gameplayStarted", (data) {
+      goToGameplay(data);
+    });
+  }
+
+  void goToGameplay(dynamic data) {
+    if (navigatedToGameplay) return;
+    navigatedToGameplay = true;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GameplayScreen(
+          gameCode: widget.gameCode,
+          role: widget.role,
+          centerLat: data["zone"]["centerLat"],
+          centerLng: data["zone"]["centerLng"],
+          radius: (data["currentRadius"] ?? widget.radius).toDouble(),
+          anonymousMode: widget.anonymousMode,
+        ),
+      ),
+    );
+  }
+
+  Future<void> loadInitialTeammates() async {
+    final positions = await ApiService.getPositions(widget.gameCode);
+    if (positions == null || !mounted) return;
+
+    setState(() {
+      teammates = positions;
     });
   }
 
@@ -114,7 +136,6 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
 
   void updateTimer() {
     final now = DateTime.now().millisecondsSinceEpoch;
-
     final remaining = ((widget.hidePhaseEndsAt - now) / 1000).floor();
 
     setState(() {
@@ -123,9 +144,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
   }
 
   bool isOutsideZone() {
-    if (currentPosition == null) {
-      return false;
-    }
+    if (currentPosition == null) return false;
 
     final distance = Geolocator.distanceBetween(
       currentPosition!.latitude,
@@ -138,9 +157,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
   }
 
   double getDistanceFromCenter() {
-    if (currentPosition == null) {
-      return 0;
-    }
+    if (currentPosition == null) return 0;
 
     return Geolocator.distanceBetween(
       currentPosition!.latitude,
@@ -152,33 +169,23 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
 
   double getDistanceOutsideZone() {
     final distance = getDistanceFromCenter();
-
     return (distance - widget.radius).clamp(0, double.infinity);
   }
 
   String formatTime() {
     final minutes = secondsRemaining ~/ 60;
-
     final seconds = secondsRemaining % 60;
-
     return "${minutes.toString().padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}";
   }
 
-  Color roleColor() {
-    if (widget.role == "hunter") {
-      return Colors.red;
-    }
+  Color roleColor() => widget.role == "hunter" ? Colors.red : Colors.green;
 
-    return Colors.green;
-  }
-
-  String roleText() {
-    return widget.role.toUpperCase();
-  }
+  String roleText() => widget.role.toUpperCase();
 
   @override
   void dispose() {
     SocketService.socket.off("positionsUpdated");
+    SocketService.socket.off("gameplayStarted");
     timer?.cancel();
     super.dispose();
   }
@@ -187,222 +194,194 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
     if (currentPosition == null) {
       return LatLng(widget.centerLat, widget.centerLng);
     }
-
     return LatLng(currentPosition!.latitude, currentPosition!.longitude);
+  }
+
+  List getVisibleTeammates() {
+    return teammates.where((p) {
+      return p["name"] != PlayerData.playerName &&
+          p["role"] == widget.role &&
+          p["position"] != null &&
+          p["position"]["lat"] != null &&
+          p["position"]["lng"] != null;
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final playerPoint = getPlayerPoint();
-
     final outsideZone = isOutsideZone();
-
     final distanceFromCenter = getDistanceFromCenter();
-
     final distanceOutside = getDistanceOutsideZone();
+    final visibleTeammates = getVisibleTeammates();
 
-    return Container(
-      decoration: BoxDecoration(
-        border: outsideZone
-            ? Border.all(
-                color: secondsRemaining % 2 == 0
-                    ? Colors.red
-                    : Colors.red.withOpacity(0.4),
-                width: 8,
-              )
-            : null,
-      ),
-      child: Scaffold(
-        appBar: AppBar(title: const Text("Hide Phase")),
-        body: Column(
-          children: [
-            const SizedBox(height: 10),
-
-            const Text(
-              "HIDE PHASE",
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: roleColor(),
-                borderRadius: BorderRadius.circular(10),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {},
+      child: Container(
+        decoration: BoxDecoration(
+          border: outsideZone
+              ? Border.all(
+                  color: secondsRemaining % 2 == 0
+                      ? Colors.red
+                      : Colors.red.withValues(alpha: 0.4),
+                  width: 8,
+                )
+              : null,
+        ),
+        child: Scaffold(
+          appBar: AppBar(title: const Text("Hide Phase")),
+          body: Column(
+            children: [
+              const SizedBox(height: 10),
+              const Text(
+                "HIDE PHASE",
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
-              child: Text(
-                roleText(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Text(
-              formatTime(),
-              style: const TextStyle(fontSize: 60, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            Text(
-              "Distance From Center: ${distanceFromCenter.round()}m",
-              style: const TextStyle(fontSize: 16),
-            ),
-
-            Text(
-              "Zone Radius: ${widget.radius.round()}m",
-              style: const TextStyle(fontSize: 16),
-            ),
-
-            if (outsideZone) ...[
-              const SizedBox(height: 12),
-
+              const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  color: roleColor(),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  "⚠ OUTSIDE THE SAFE ZONE ⚠\n\n"
-                  "Return to the zone immediately!\n\n"
-                  "Distance Outside: ${distanceOutside.round()}m",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  roleText(),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                formatTime(),
+                style: const TextStyle(fontSize: 60, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Distance From Center: ${distanceFromCenter.round()}m",
+                style: const TextStyle(fontSize: 16),
+              ),
+              Text(
+                "Zone Radius: ${widget.radius.round()}m",
+                style: const TextStyle(fontSize: 16),
+              ),
+              if (outsideZone) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Text(
+                    "⚠ OUTSIDE THE SAFE ZONE ⚠\n\n"
+                    "Return to the zone immediately!\n\n"
+                    "Distance Outside: ${distanceOutside.round()}m",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Text(
+                widget.role == "hunter"
+                    ? "Wait for the hide phase to finish."
+                    : "Find your hiding place before the hunt begins.",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: FlutterMap(
+                  mapController: mapController,
+                  options: MapOptions(
+                    initialCenter: playerPoint,
+                    initialZoom: 15,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    ),
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: LatLng(widget.centerLat, widget.centerLng),
+                          radius: widget.radius,
+                          useRadiusInMeter: true,
+                          color: Colors.blue.withValues(alpha: 0.20),
+                          borderColor: Colors.blue,
+                          borderStrokeWidth: 3,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: playerPoint,
+                          width: 80,
+                          height: 80,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.person_pin_circle,
+                                color: Colors.green,
+                                size: 40,
+                              ),
+                              const Text(
+                                "You",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ...visibleTeammates.map(
+                          (p) => Marker(
+                            point: LatLng(
+                              p["position"]["lat"],
+                              p["position"]["lng"],
+                            ),
+                            width: 80,
+                            height: 80,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.people,
+                                  color: widget.role == "hunter"
+                                      ? Colors.red
+                                      : Colors.green,
+                                  size: 35,
+                                ),
+                                Text(
+                                  widget.anonymousMode
+                                      ? "${p["role"] == "hunter" ? "Hunter" : "Hider"} ${String.fromCharCode(65 + visibleTeammates.indexOf(p))}"
+                                      : p["name"],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
-
-            const SizedBox(height: 10),
-
-            Text(
-              widget.role == "hunter"
-                  ? "Wait for the hide phase to finish."
-                  : "Find your hiding place before the hunt begins.",
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 10),
-
-            Expanded(
-              child: FlutterMap(
-                mapController: mapController,
-                options: MapOptions(
-                  initialCenter: playerPoint,
-                  initialZoom: 15,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  ),
-
-                  CircleLayer(
-                    circles: [
-                      CircleMarker(
-                        point: LatLng(widget.centerLat, widget.centerLng),
-                        radius: widget.radius,
-                        useRadiusInMeter: true,
-                        color: Colors.blue.withValues(alpha: 0.20),
-                        borderColor: Colors.blue,
-                        borderStrokeWidth: 3,
-                      ),
-                    ],
-                  ),
-
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: LatLng(widget.centerLat, widget.centerLng),
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      ),
-
-                      Marker(
-                        point: playerPoint,
-                        width: 80,
-                        height: 80,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.person_pin_circle,
-                              color: Colors.green,
-                              size: 40,
-                            ),
-                            const Text(
-                              "You",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ...teammates
-                          .where(
-                            (p) =>
-                                p["name"] != PlayerData.playerName &&
-                                p["position"] != null &&
-                                p["position"]["lat"] != null &&
-                                p["position"]["lng"] != null,
-                          )
-                          .map(
-                            (p) => Marker(
-                              point: LatLng(
-                                p["position"]["lat"],
-                                p["position"]["lng"],
-                              ),
-                              width: 80,
-                              height: 80,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.people,
-                                    color: widget.role == "hunter"
-                                        ? Colors.red
-                                        : Colors.green,
-                                    size: 35,
-                                  ),
-
-                                  Text(
-                                    widget.anonymousMode
-                                        ? "${p["role"] == "hunter" ? "Hunter" : "Hider"} ${String.fromCharCode(65 + teammates.indexOf(p))}"
-                                        : p["name"],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

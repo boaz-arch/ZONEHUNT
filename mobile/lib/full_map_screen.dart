@@ -16,54 +16,29 @@ class FullMapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final center = LatLng(
-      centerLat,
-      centerLng,
-    );
+    final center = LatLng(centerLat, centerLng);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Zone Map",
-        ),
-      ),
+      appBar: AppBar(title: const Text("Zone Map")),
       body: Column(
         children: [
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             color: Colors.grey.shade900,
             child: Column(
               children: [
                 const Text(
                   "Selected Zone",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                Text(
-                  "Radius: ${radius}m",
-                ),
-
-                Text(
-                  "Lat: ${centerLat.toStringAsFixed(5)}",
-                ),
-
-                Text(
-                  "Lng: ${centerLng.toStringAsFixed(5)}",
-                ),
+                const SizedBox(height: 8),
+                Text("Radius: ${radius}m"),
+                Text("Lat: ${centerLat.toStringAsFixed(5)}"),
+                Text("Lng: ${centerLng.toStringAsFixed(5)}"),
               ],
             ),
           ),
-
           Expanded(
             child: FlutterMap(
               options: MapOptions(
@@ -75,41 +50,20 @@ class FullMapScreen extends StatelessWidget {
                   urlTemplate:
                       'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 ),
-
                 CircleLayer(
                   circles: [
                     CircleMarker(
                       point: center,
-                      radius:
-                          radius.toDouble(),
-                      useRadiusInMeter:
-                          true,
-                      color: Colors.blue
-                          .withOpacity(
-                              0.25),
-                      borderColor:
-                          Colors.blue,
-                      borderStrokeWidth:
-                          3,
+                      radius: radius.toDouble(),
+                      useRadiusInMeter: true,
+                      color: Colors.blue.withValues(alpha: 0.25),
+                      borderColor: Colors.blue,
+                      borderStrokeWidth: 3,
                     ),
                   ],
                 ),
-
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: center,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.location_on,
-                        color:
-                            Colors.red,
-                        size: 40,
-                      ),
-                    ),
-                  ],
-                ),
+                // Center pin intentionally omitted — the zone circle is
+                // enough for the preview.
               ],
             ),
           ),
