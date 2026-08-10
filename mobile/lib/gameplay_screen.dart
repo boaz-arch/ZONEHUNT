@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as Math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -54,6 +55,26 @@ class _GameplayScreenState extends State<GameplayScreen>
 
   bool isCaught = false;
   bool markingCaught = false;
+
+  List<LatLng> getWorldBounds() {
+    return [
+      LatLng(85, -180),
+      LatLng(85, 180),
+      LatLng(-85, 180),
+      LatLng(-85, -180),
+    ];
+  }
+
+  List<LatLng> getSafeZoneHole() {
+    const points = 120;
+    
+    return List.generate(points, (index) {
+      final angle = (index / points) * 2 * Math.pi;
+      final latOffset = (displayedRadius / 111320) * Math.sin(angle);
+      final lngOffset = (displayedRadius / (111320 * Math.cos(widget.centerLat * Math.pi / 180))) * Math.cos(angle);
+      return LatLng(widget.centerLat + latOffset, widget.centerLng + lngOffset);
+    }); 
+  }
 
   @override
   void initState() {
@@ -442,13 +463,28 @@ class _GameplayScreenState extends State<GameplayScreen>
                       urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     ),
+                    PolygonLayer(
+                      polygons: [
+                        Polygon(
+                          points: getWorldBounds(),
+                          holePointsList: [getSafeZoneHole(),],
+                          color: Colors.blue.shade900.withValues(alpha: 0.35),
+                        ),
+                        Polygon(
+                          points: getSafeZoneHole(),
+                          color: Colors.transparent,
+                          borderColor: Colors.blue,
+                          borderStrokeWidth: 3,
+                        ),
+                      ],
+                    ),
                     CircleLayer(
                       circles: [
                         CircleMarker(
-                          point: LatLng(widget.centerLat, widget.centerLng),
+                        point: LatLng(widget.centerLat, widget.centerLng),
                           radius: displayedRadius,
                           useRadiusInMeter: true,
-                          color: Colors.blue.withValues(alpha: 0.20),
+                          color: Colors.transparent,
                           borderColor: Colors.blue,
                           borderStrokeWidth: 3,
                         ),

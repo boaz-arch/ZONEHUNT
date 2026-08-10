@@ -99,7 +99,7 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/update-settings'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'gameCode': gameCode, 'settings': settings}),
+        body: jsonEncode({'gameCode': gameCode, 'playerId': playerId, 'settings': settings}),
       );
 
       print("UPDATE SETTINGS RESPONSE: ${response.statusCode}");
@@ -121,6 +121,7 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'gameCode': gameCode,
+          'playerId': playerId,
           'centerLat': lat,
           'centerLng': lng,
         }),

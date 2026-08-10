@@ -32,6 +32,8 @@ class _SettingsScreenState
   bool anonymousMode = false;
   bool randomFutureZones = true;
 
+  late double outsideZoneTime;
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +86,10 @@ class _SettingsScreenState
         widget.settings[
                 "randomFutureZones"] ??
             true;
+
+    outsideZoneTime =
+        (widget.settings["outsideZoneTime"] ?? 10)
+            .toDouble();
   }
 
   Widget buildSlider({
@@ -236,6 +242,19 @@ class _SettingsScreenState
             onChanged: (v) {
               setState(() {
                 hunterCount = v;
+              });
+            },
+          ),
+
+          buildSlider(
+            title: "Outside Zone Time",
+            value: outsideZoneTime,
+            min: 0,
+            max: 120,
+            suffix: " sec",
+            onChanged: (v) {
+              setState(() {
+                outsideZoneTime = v;
               });
             },
           ),
@@ -408,6 +427,8 @@ class _SettingsScreenState
                       anonymousMode,
                   "randomFutureZones":
                       randomFutureZones,
+                  "outsideZoneTime":
+                      outsideZoneTime.round(),
                 },
               );
             },

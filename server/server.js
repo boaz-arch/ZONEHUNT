@@ -107,6 +107,8 @@ app.post("/create-game", (req, res) => {
 
       anonymousMode: false,
       randomFutureZones: true,
+
+      outsideZoneTime: 10,
     },
 
     zone: {
@@ -335,47 +337,107 @@ app.post(
 
 
 function startZoneShrinking(gameCode) {
+
   const game = games[gameCode];
 
   if (!game) return;
 
-  const zoneCount = game.settings.zoneCount;
-  const startRadius = game.settings.startRadius;
-  const finalRadius = game.settings.finalRadius;
+  const zoneCount =
+    game.settings.zoneCount;
+
+  const startRadius =
+    game.settings.startRadius;
+
+  const finalRadius =
+    game.settings.finalRadius;
+
+  const zoneWaitMs =
+    game.settings.zoneWaitTime *
+    60 *
+    1000;
+
+  const zoneShrinkMs =
+    game.settings.zoneShrinkTime *
+    60 *
+    1000;
 
   const radiusStep =
-      (startRadius - finalRadius) /
-      (zoneCount - 1);
+    (startRadius - finalRadius) /
+    (zoneCount - 1);
 
-  let currentZone = 1;
+  function scheduleNextZone() {
 
-  setInterval(() => {
+    const currentGame =
+      games[gameCode];
 
-    if (!games[gameCode]) return;
+    if (!currentGame) return;
 
-    if (currentZone >= zoneCount) return;
+    if (
+      currentGame.currentZone >=
+      zoneCount
+    ) {
+      return;
+    }
 
-    currentZone++;
+    currentGame.nextZoneStartsAt =
+      Date.now() + zoneWaitMs;
 
-    game.currentZone = currentZone;
+    io.to(gameCode).emit(
+      "zoneTimerUpdated",
+      {
+        currentZone:
+          currentGame.currentZone,
+        nextZoneStartsAt:
+          currentGame.nextZoneStartsAt,
+      },
+    );
 
-    game.currentRadius =
+    setTimeout(() => {
+
+      const activeGame =
+        games[gameCode];
+
+      if (!activeGame) return;
+
+      activeGame.currentZone++;
+
+      activeGame.zoneShrinkEndsAt =
+        Date.now() +
+        zoneShrinkMs;
+
+      activeGame.currentRadius =
         Math.round(
           startRadius -
           radiusStep *
-          (currentZone - 1)
+          (activeGame.currentZone - 1),
         );
 
-    io.to(gameCode).emit(
-      "zoneUpdated",
-      {
-        currentZone: game.currentZone,
-        currentRadius: game.currentRadius,
-      }
-    );
+      io.to(gameCode).emit(
+        "zoneUpdated",
+        {
+          currentZone:
+            activeGame.currentZone,
+          radius:
+            activeGame.currentRadius,
+          durationMs:
+            zoneShrinkMs,
+          zoneShrinkEndsAt:
+            activeGame.zoneShrinkEndsAt,
+        },
+      );
 
-  }, 30000);
+      setTimeout(() => {
+        scheduleNextZone();
+      }, zoneShrinkMs);
+
+      scheduleNextZone();
+
+    }, zoneWaitMs);
+  }
+
+  scheduleNextZone();
 }
+
 
 app.post("/start-game", (req, res) => {
   console.log(
@@ -423,7 +485,38 @@ app.post("/start-game", (req, res) => {
       60 *
       1000;
 
-  startZoneShrinking(gameCode);    
+  setTimeout(() => {
+
+    const currentGame =
+      games[gameCode];
+
+    if (!currentGame) return;
+
+    if (currentGame.state !== "hidePhase") {
+      return;
+    }
+
+    currentGame.state = "gameplay";
+
+    currentGame.nextZoneStartsAt =
+      Date.now() +
+      currentGame.settings.zoneWaitTime *
+        60 *
+        1000;
+
+    startZoneShrinking(gameCode);
+    startRedZoneSystem(gameCode);
+
+    io.to(gameCode).emit(
+      "gameplayStarted",
+      {
+        zone: currentGame.zone,
+        currentRadius:
+          currentGame.currentRadius,
+      },
+    );
+
+  }, game.settings.hideTime * 60 * 1000);
 
   io.to(gameCode).emit(
     "gameStarted",
@@ -434,6 +527,52 @@ app.post("/start-game", (req, res) => {
     success: true,
   });
 });
+
+function startRedZoneSystem(gameCode) {
+  const game = games[gameCode];
+
+  if (!game) return;
+
+  const shiftMs =
+    game.settings.redZoneShiftTime *
+    1000;
+
+    setInterval(() => {
+      const activeGame =
+        games[gameCode];
+
+      if (!activeGame) return;
+      
+      const maxOffsetMeters = 
+        activeGame.settings.startRadius;
+
+      const angle = 
+        Math.random() * 2 * Math.PI;
+
+      const distance = 
+        Math.random() * maxOffsetMeters;
+
+      const latOffset = 
+        (distance / 111320) * Math.cos(angle);
+
+      const lngOffset = 
+        (distance / (111320 * Math.cos(activeGame.zone.centerLat * (Math.PI / 180)))) * Math.sin(angle);
+
+      const lat = 
+        activeGame.zone.centerLat + latOffset;
+
+      const lng = 
+        activeGame.zone.centerLng + lngOffset;
+
+      io.to(gameCode).emit(
+        "redZoneUpdated",{
+          lat, 
+          lng,
+          radius: activeGame.settings.redZoneRadius
+        },
+      ); 
+    },shiftMs);
+}
 
 app.get("/game/:code", (req, res) => {
   const game = games[req.params.code];
