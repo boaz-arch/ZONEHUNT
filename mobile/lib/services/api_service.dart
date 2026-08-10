@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../player_data.dart';
 
 class ApiService {
   static const String baseUrl = 'http://10.10.0.10:3000';
@@ -159,7 +160,7 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'gameCode': gameCode,
-          'playerId': playerIdentifier,
+          'playerId': PlayerData.playerId,
           'lat': lat,
           'lng': lng,
         }),
@@ -192,12 +193,12 @@ class ApiService {
   }
 
   /// Marks the calling player (must be a hider) as caught.
-  static Future<bool> markCaught(String gameCode, String playerName) async {
+  static Future<bool> markCaught(String gameCode, String playerId) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/mark-caught'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'gameCode': gameCode, 'playerName': playerName}),
+        body: jsonEncode({'gameCode': gameCode, 'playerId': playerId}),
       );
 
       return response.statusCode == 200;

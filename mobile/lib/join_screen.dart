@@ -41,7 +41,9 @@ class _JoinScreenState extends State<JoinScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Game not found"),
+          content: Text(
+            "Unable to join game",
+          ),
         ),
       );
 

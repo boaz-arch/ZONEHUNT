@@ -41,8 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     final code = result?["gameCode"];
-    final playerId = result?["playerId"];
-    PlayerData.playerId = playerId ?? "";
+    final playerId = result?["playerId"] ?? "";
+    PlayerData.playerId = playerId;
 
     setState(() => creating = false);
 

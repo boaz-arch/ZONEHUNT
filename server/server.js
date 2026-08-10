@@ -106,9 +106,8 @@ app.post("/create-game", (req, res) => {
             id: randomUUID(),
             name: playerName,
             host: true,
-
             role: null,
-
+            caught: false,
             position: {
               lat: null,
               lng: null,
@@ -138,20 +137,27 @@ app.post("/join-game", (req, res) => {
     });
   }
 
-    const player = {
-      id: randomUUID(),
-      name: playerName,
-      host: false,
-      role: null,
-      caught: false,
-      position: {
-        lat: null,
-        lng: null,
-        lastUpdate: null,
-      },
-    };
+  if (game.state !== "lobby") {
+    return res.status(400).json({
+      success: false,
+      message: "Game already started",
+    });
+  }
 
-    game.players.push(player);
+  const player = {
+    id: randomUUID(),
+    name: playerName,
+    host: false,
+    role: null,
+    caught: false,
+    position: {
+      lat: null,
+      lng: null,
+      lastUpdate: null,
+    },
+  };
+
+  game.players.push(player);
 
   io.to(gameCode).emit(
     "lobbyUpdated",
@@ -250,8 +256,10 @@ app.get(
 
     res.json(
       game.players.map((p) => ({
+        id: p.id,
         name: p.name,
         role: p.role,
+        caught: p.caught,
         position: p.position,
       })),
     );
@@ -290,6 +298,8 @@ app.post(
     });
   },
 );
+
+
 
 function startZoneShrinking(gameCode) {
   const game = games[gameCode];
@@ -348,6 +358,13 @@ app.post("/start-game", (req, res) => {
       success: false,
     });
   }
+
+  if (game.state !== "lobby") {
+  return res.status(400).json({
+    success: false,
+    message: "Game already started",
+  });
+}
 
   assignRoles(game);
 
@@ -422,6 +439,48 @@ const io = new Server(server, {
   cors: {
     origin: "*",
   },
+});
+
+app.post("/mark-caught", (req, res) => {
+
+  const {
+    gameCode,
+    playerId,
+  } = req.body;
+
+  const game = games[gameCode];
+
+  if (!game) {
+    return res.status(404).json({
+      success: false,
+    });
+  }
+
+  const player =
+    game.players.find(
+      p => p.id === playerId
+    );
+
+  if (!player) {
+    return res.status(404).json({
+      success: false,
+    });
+  }
+
+  player.caught = true;
+
+  io.to(gameCode).emit(
+    "playerCaught",
+    {
+      playerId,
+      players: game.players,
+    }
+  );
+
+  res.json({
+    success: true,
+  });
+
 });
 
 io.on("connection", (socket) => {
