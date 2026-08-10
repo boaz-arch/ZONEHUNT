@@ -210,6 +210,7 @@ class _LobbyScreenState
 
     await ApiService.updateSettings(
       widget.gameCode,
+      PlayerData.playerId,
       result,
     );
 
@@ -235,6 +236,7 @@ class _LobbyScreenState
 
     await ApiService.updateZoneCenter(
       widget.gameCode,
+      PlayerData.playerId,
       result.latitude,
       result.longitude,
     );
@@ -334,25 +336,6 @@ class _LobbyScreenState
                             Colors.blue,
                         borderStrokeWidth:
                             3,
-                      ),
-                    ],
-                  ),
-
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: LatLng(
-                          centerLat,
-                          centerLng,
-                        ),
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_on,
-                          color:
-                              Colors.red,
-                          size: 40,
-                        ),
                       ),
                     ],
                   ),
@@ -494,6 +477,7 @@ class _LobbyScreenState
                 onPressed: () async {
                   await ApiService.startGame(
                     widget.gameCode,
+                    PlayerData.playerId,
                   );
                 },
                 child: const Text(

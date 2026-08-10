@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -37,6 +39,9 @@ class _GameplayScreenState extends State<GameplayScreen>
   List teammates = [];
 
   Position? currentPosition;
+
+  StreamSubscription<Position>? gpsSubscription;
+
 
   final MapController mapController = MapController();
 
@@ -171,7 +176,7 @@ class _GameplayScreenState extends State<GameplayScreen>
 
     mapController.move(LatLng(position.latitude, position.longitude), 16);
 
-    Geolocator.getPositionStream(
+    gpsSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     ).listen((position) {
       setState(() {
@@ -256,6 +261,7 @@ class _GameplayScreenState extends State<GameplayScreen>
     SocketService.socket.off("redZoneUpdated");
     SocketService.socket.off("gameEnded");
     _radiusController.dispose();
+    gpsSubscription?.cancel();
     super.dispose();
   }
 

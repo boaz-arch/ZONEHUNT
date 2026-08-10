@@ -9,6 +9,7 @@ import 'services/socket_service.dart';
 import 'player_data.dart';
 import 'gameplay_screen.dart';
 
+
 class HidePhaseScreen extends StatefulWidget {
   final int hidePhaseEndsAt;
   final String role;
@@ -36,6 +37,7 @@ class HidePhaseScreen extends StatefulWidget {
 }
 
 class _HidePhaseScreenState extends State<HidePhaseScreen> {
+
   List teammates = [];
 
   int secondsRemaining = 0;
@@ -43,6 +45,8 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
   Timer? timer;
 
   Position? currentPosition;
+
+  StreamSubscription<Position>? gpsSubscription;
 
   final MapController mapController = MapController();
 
@@ -118,8 +122,8 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
     });
 
     mapController.move(LatLng(position.latitude, position.longitude), 16);
-
-    Geolocator.getPositionStream(
+    
+    gpsSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     ).listen((position) {
       setState(() {
@@ -187,6 +191,7 @@ class _HidePhaseScreenState extends State<HidePhaseScreen> {
     SocketService.socket.off("positionsUpdated");
     SocketService.socket.off("gameplayStarted");
     timer?.cancel();
+    gpsSubscription?.cancel();
     super.dispose();
   }
 

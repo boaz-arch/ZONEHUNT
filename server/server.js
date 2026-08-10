@@ -11,6 +11,19 @@ app.use(express.json());
 
 const games = {};
 
+function getHostPlayer(game, playerId) {
+  const player = game.players.find(
+    (p) => p.id === playerId,
+  );
+
+  if (!player) return null;
+
+  if (!player.host) return null;
+
+  return player;
+
+}
+
 function generateGameCode(length = 6) {
   const chars =
   // ABCDEFGHJKLMNPQRSTUVWXYZ23456789
@@ -171,7 +184,7 @@ app.post("/join-game", (req, res) => {
 });
 
 app.post("/update-settings", (req, res) => {
-  const { gameCode, settings } =
+  const { gameCode, playerId, settings } =
     req.body;
 
   const game = games[gameCode];
@@ -181,6 +194,16 @@ app.post("/update-settings", (req, res) => {
       success: false,
     });
   }
+
+  const host = getHostPlayer(game, playerId);
+
+  if (!host) {
+    return res.status(403).json({
+      success: false,
+      message: "Only the host can update settings",
+    });
+  }
+
 
   game.settings = settings;
 
@@ -271,6 +294,7 @@ app.post(
   (req, res) => {
     const {
       gameCode,
+      playerId,
       centerLat,
       centerLng,
     } = req.body;
@@ -280,6 +304,15 @@ app.post(
     if (!game) {
       return res.status(404).json({
         success: false,
+      });
+    }
+
+    const host = getHostPlayer(game, playerId);
+
+    if (!host) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the host can update zone center",
       });
     }
 
@@ -349,13 +382,22 @@ app.post("/start-game", (req, res) => {
     "START GAME REQUEST",
   );
 
-  const { gameCode } = req.body;
+  const { gameCode, playerId } = req.body;
 
   const game = games[gameCode];
 
   if (!game) {
     return res.status(404).json({
       success: false,
+    });
+  }
+
+  const host = getHostPlayer(game, playerId);
+
+  if (!host) {
+    return res.status(403).json({
+      success: false,
+      message: "Only the host can start the game",
     });
   }
 

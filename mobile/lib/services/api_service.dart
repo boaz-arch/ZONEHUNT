@@ -94,7 +94,7 @@ class ApiService {
     }
   }
 
-  static Future<void> updateSettings(String gameCode, Map settings) async {
+  static Future<void> updateSettings(String gameCode, String playerId, Map<String, dynamic> settings) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/update-settings'),
@@ -111,6 +111,7 @@ class ApiService {
 
   static Future<void> updateZoneCenter(
     String gameCode,
+    String playerId,
     double lat,
     double lng,
   ) async {
@@ -132,12 +133,12 @@ class ApiService {
     }
   }
 
-  static Future<void> startGame(String gameCode) async {
+  static Future<void> startGame(String gameCode, String playerId) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/start-game'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'gameCode': gameCode}),
+        body: jsonEncode({'gameCode': gameCode, 'playerId': playerId}),
       );
 
       print("START GAME RESPONSE: ${response.statusCode}");
