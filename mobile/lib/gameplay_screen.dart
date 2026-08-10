@@ -39,9 +39,11 @@ class _GameplayScreenState extends State<GameplayScreen>
   List teammates = [];
 
   Position? currentPosition;
+  
+  DateTime? lastPositionSent;
+  Position? lastSentPosition;
 
   StreamSubscription<Position>? gpsSubscription;
-
 
   final MapController mapController = MapController();
 
@@ -177,11 +179,41 @@ class _GameplayScreenState extends State<GameplayScreen>
     mapController.move(LatLng(position.latitude, position.longitude), 16);
 
     gpsSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
     ).listen((position) {
+
       setState(() {
         currentPosition = position;
       });
+
+      final now = DateTime.now();
+
+      if (lastPositionSent != null &&
+          now.difference(lastPositionSent!).inSeconds < 1) {
+        return;
+      }
+
+      if (lastSentPosition != null) {
+        final movedDistance =
+            Geolocator.distanceBetween(
+          lastSentPosition!.latitude,
+          lastSentPosition!.longitude,
+          position.latitude,
+          position.longitude,
+        );
+
+        if (movedDistance < 5 &&
+            now.difference(lastPositionSent!)
+                  .inSeconds < 1) {
+          return;
+        }
+      }
+
+      lastPositionSent = now;
+      lastSentPosition = position;
+
       ApiService.updatePosition(
         widget.gameCode,
         PlayerData.playerId,
