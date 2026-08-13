@@ -9,6 +9,8 @@ import 'player_data.dart';
 import 'hide_phase_screen.dart';
 import 'zone_picker_screen.dart';
 import 'full_map_screen.dart';
+import 'gameplay/gameplay_screen.dart';
+
 
 class LobbyScreen extends StatefulWidget {
   final String gameCode;
@@ -94,22 +96,63 @@ class _LobbyScreenState
               PlayerData.playerId,
         );
 
+        // NEW
+        if (
+          (data["settings"]["hideTime"] ?? 0)
+              == 0
+        ) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  GameplayScreen(
+                gameCode:
+                    widget.gameCode,
+                role:
+                    myPlayer["role"],
+                centerLat:
+                    data["zone"]["centerLat"],
+                centerLng:
+                    data["zone"]["centerLng"],
+                radius:
+                    (data["settings"]
+                            ["startRadius"])
+                        .toDouble(),
+                anonymousMode:
+                    data["settings"]
+                            ["anonymousMode"] ??
+                        false,
+              ),
+            ),
+          );
+
+          return;
+        }
+
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) =>
-              HidePhaseScreen(
-                gameCode: widget.gameCode,
-                hidePhaseEndsAt: data["hidePhaseEndsAt"],
-                role: myPlayer["role"],
-                centerLat: data["zone"]["centerLat"],
-                centerLng: data["zone"]["centerLng"],
-                radius: (data["settings"]["startRadius"])
-                    .toDouble(),
-
-                anonymousMode: data["settings"]["anonymousMode"]
-                  ?? false,
-              )
+                HidePhaseScreen(
+              gameCode:
+                  widget.gameCode,
+              hidePhaseEndsAt:
+                  data["hidePhaseEndsAt"],
+              role:
+                  myPlayer["role"],
+              centerLat:
+                  data["zone"]["centerLat"],
+              centerLng:
+                  data["zone"]["centerLng"],
+              radius:
+                  (data["settings"]
+                          ["startRadius"])
+                      .toDouble(),
+              anonymousMode:
+                  data["settings"]
+                          ["anonymousMode"] ??
+                      false,
+            ),
           ),
         );
       },
@@ -330,8 +373,8 @@ class _LobbyScreenState
                         useRadiusInMeter:
                             true,
                         color: Colors.blue
-                            .withOpacity(
-                                0.20),
+                            .withValues(
+                                alpha: 0.20),
                         borderColor:
                             Colors.blue,
                         borderStrokeWidth:

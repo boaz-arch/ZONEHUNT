@@ -6,7 +6,7 @@ import 'player_data.dart';
 import 'home_screen.dart';
 import 'lobby_screen.dart';
 import 'hide_phase_screen.dart';
-import 'gameplay_screen.dart';
+import 'gameplay/gameplay_screen.dart';
 
 const _codeKey = 'activeGameCode';
 const _nameKey = 'activePlayerName';
