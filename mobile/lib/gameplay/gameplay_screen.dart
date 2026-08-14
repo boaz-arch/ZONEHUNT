@@ -56,6 +56,7 @@ class _GameplayScreenState extends State<GameplayScreen>
   List<Player> teammates = [];
 
   Position? currentPosition;
+
   late final GpsController gps;
 
   final MapController mapController = MapController();
@@ -72,8 +73,11 @@ class _GameplayScreenState extends State<GameplayScreen>
   bool markingCaught = false;
 
   bool showPlayerList = false;
+  
+  int? outsideZoneSecondsRemaining;
 
   late final GameSocketListener socketListener;
+
 
   @override
   void initState() {
@@ -106,10 +110,12 @@ class _GameplayScreenState extends State<GameplayScreen>
           currentPosition = position;
         });
       },
+
       onInitialFix: (position) {
         setState(() {
           currentPosition = position;
         });
+
 
         mapController.move(
           LatLng(position.latitude, position.longitude),
@@ -128,6 +134,7 @@ class _GameplayScreenState extends State<GameplayScreen>
       onZoneUpdated: _onZoneUpdated,
       onRedZoneUpdated: _onRedZoneUpdated,
       onGameEnded: _onGameEnded,
+      onOutsideZoneUpdated: _onOutsideZoneUpdated,
     );
     socketListener.register();
   }
@@ -199,6 +206,21 @@ class _GameplayScreenState extends State<GameplayScreen>
     }
   }
 
+  void _onOutsideZoneUpdated(
+    String playerId,
+    int? remainingSeconds,
+  ) {
+
+    if (playerId != PlayerData.playerId) {
+      return;
+    }
+
+    setState(() {
+      outsideZoneSecondsRemaining =
+          remainingSeconds;
+    });
+  }
+  
   Player? _findPlayerById(String id) {
     for (final p in teammates) {
       if (p.id == id) return p;
@@ -404,7 +426,12 @@ class _GameplayScreenState extends State<GameplayScreen>
                 secondsRemaining: zoneTimer.secondsRemaining,
               ),
 
-              if (outsideZone) OutsideZoneBanner(distanceOutside: distanceOutside),
+              if (outsideZone)
+                OutsideZoneBanner(
+                  distanceOutside: distanceOutside,
+                  secondsRemaining:
+                      outsideZoneSecondsRemaining ?? -1,
+                ),
 
               if (widget.role == "hider" && !isCaught)
                 CaughtButton(isSubmitting: markingCaught, onPressed: markCaught),

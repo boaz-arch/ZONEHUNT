@@ -70,16 +70,13 @@ class ApiService {
     }
   }
 
-  /// Fetches the authoritative game state, including this player's role,
-  /// caught status, and the live (possibly mid-shrink) zone radius.
-  /// [playerName] is required to resolve "your" role/caught status.
   static Future<Map<String, dynamic>?> getGameState(
     String code,
-    String playerName,
+    String playerId,
   ) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/game-state/$code?playerName=$playerName'),
+        Uri.parse('$baseUrl/game-state/$code?playerId=$playerId'),
       );
 
       if (response.statusCode == 200) {

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatefulWidget {
   final Map settings;
+  final int playerCount;
 
   const SettingsScreen({
     super.key,
     required this.settings,
+    required this.playerCount,
   });
 
   @override
@@ -120,9 +122,12 @@ class _SettingsScreenState
               value: value,
               min: min,
               max: max,
-              divisions:
-                  (max - min).round(),
-              onChanged: onChanged,
+              divisions: (max - min).round() <= 0
+                  ? 1
+                  : (max - min).round(),
+              onChanged: max == min
+                  ? null
+                  : onChanged,
             ),
           ],
         ),
@@ -198,6 +203,12 @@ class _SettingsScreenState
     final estimatedDuration =
         estimatedGameLength();
 
+    final maxHunters =
+        widget.playerCount <= 1
+            ? 1.0
+            : (widget.playerCount - 1)
+                .toDouble();
+    
     return Scaffold(
       appBar: AppBar(
         title:
@@ -237,7 +248,7 @@ class _SettingsScreenState
             title: "Hunters",
             value: hunterCount,
             min: 1,
-            max: 10,
+            max: maxHunters,
             suffix: "",
             onChanged: (v) {
               setState(() {
@@ -245,6 +256,7 @@ class _SettingsScreenState
               });
             },
           ),
+
 
           buildSlider(
             title: "Outside Zone Time",
@@ -301,7 +313,7 @@ class _SettingsScreenState
           buildSlider(
             title: "Zone Wait Time",
             value: zoneWaitTime,
-            min: 0,
+            min: 1,
             max: 30,
             suffix: " min",
             onChanged: (v) {
@@ -328,7 +340,7 @@ class _SettingsScreenState
             title: "Red Zone Radius",
             value: redZoneRadius,
             min: 10,
-            max: 500,
+            max: 1000,
             suffix: " m",
             onChanged: (v) {
               setState(() {
@@ -340,7 +352,7 @@ class _SettingsScreenState
           buildSlider(
             title: "Red Zone Shift",
             value: redZoneShiftTime,
-            min: 30,
+            min: 15,
             max: 300,
             suffix: " sec",
             onChanged: (v) {

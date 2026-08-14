@@ -502,6 +502,7 @@ class _HidePhaseScreenState
                 OutsideZoneBanner(
                   distanceOutside:
                       distanceOutside,
+                      secondsRemaining: -1,
                 ),
             ],
           ),

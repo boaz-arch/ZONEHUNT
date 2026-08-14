@@ -9,6 +9,7 @@ class GameSocketListener {
   final void Function(Map zoneState, int durationMs) onZoneUpdated;
   final void Function(Map<String, dynamic> rawRedZone) onRedZoneUpdated;
   final void Function(String winner) onGameEnded;
+  final void Function(String playerId, int? remainingSeconds,) onOutsideZoneUpdated;
 
   GameSocketListener({
     required this.onZoneTimerUpdated,
@@ -17,6 +18,7 @@ class GameSocketListener {
     required this.onZoneUpdated,
     required this.onRedZoneUpdated,
     required this.onGameEnded,
+    required this.onOutsideZoneUpdated,
   });
 
   void register() {
@@ -26,6 +28,7 @@ class GameSocketListener {
     SocketService.socket.on("zoneUpdated", _handleZoneUpdated);
     SocketService.socket.on("redZoneUpdated", _handleRedZoneUpdated);
     SocketService.socket.on("gameEnded", _handleGameEnded);
+    SocketService.socket.on("outsideZoneUpdated", _handleOutsideZoneUpdated);
   }
 
   void _handleZoneTimerUpdated(dynamic data) {
@@ -60,6 +63,15 @@ class GameSocketListener {
     onGameEnded(data["winner"]);
   }
 
+  void _handleOutsideZoneUpdated(
+    dynamic data,
+  ) {
+    onOutsideZoneUpdated(
+      data["playerId"],
+      data["remainingSeconds"],
+    );
+  }
+
   void dispose() {
     SocketService.socket.off("positionsUpdated");
     SocketService.socket.off("playerCaught");
@@ -67,5 +79,6 @@ class GameSocketListener {
     SocketService.socket.off("redZoneUpdated");
     SocketService.socket.off("gameEnded");
     SocketService.socket.off("zoneTimerUpdated");
+    SocketService.socket.off("outsideZoneUpdated");
   }
 }

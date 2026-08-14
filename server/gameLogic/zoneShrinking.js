@@ -76,6 +76,21 @@ function startZoneShrinking(gameCode, io) {
       phaseEndsAt: Date.now() + zoneShrinkMs,
     });
 
+    activeGame.zoneState.shrinkStartedAt =
+      Date.now();
+
+    activeGame.zoneState.shrinkEndsAt =
+      Date.now() + zoneShrinkMs;
+
+    activeGame.zoneState.shrinkStartRadius =
+      activeGame.zoneState.currentRadius;
+
+    activeGame.zoneState.shrinkStartCenterLat =
+      activeGame.zoneState.currentCenterLat;
+
+    activeGame.zoneState.shrinkStartCenterLng =
+      activeGame.zoneState.currentCenterLng;
+
     io.to(gameCode).emit("zoneUpdated", {
       durationMs: zoneShrinkMs,
       zoneState: activeGame.zoneState,
@@ -95,6 +110,21 @@ function startZoneShrinking(gameCode, io) {
 
         finishedGame.zoneState.currentRadius =
           finishedGame.zoneState.nextRadius;
+
+        finishedGame.zoneState.shrinkStartedAt =
+          null;
+
+        finishedGame.zoneState.shrinkEndsAt =
+          null;
+
+        finishedGame.zoneState.shrinkStartRadius =
+          null;
+
+        finishedGame.zoneState.shrinkStartCenterLat =
+          null;
+
+        finishedGame.zoneState.shrinkStartCenterLng =
+          null;
 
         if (finishedGame.zoneState.currentZoneNumber >= zoneCount) {
           finishedGame.zoneState.nextCenterLat = null;

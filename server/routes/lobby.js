@@ -52,12 +52,13 @@ function buildLobbyRouter(io) {
           host: true,
           role: null,
           caught: false,
+          outsideZoneSince: null,
           position: {
             lat: null,
             lng: null,
             lastUpdate: null,
           },
-        },
+        }
       ],
     });
 
@@ -93,6 +94,7 @@ function buildLobbyRouter(io) {
       host: false,
       role: null,
       caught: false,
+      outsideZoneSince: null,
       position: {
         lat: null,
         lng: null,

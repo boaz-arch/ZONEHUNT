@@ -122,6 +122,7 @@ class _LobbyScreenState
                     data["settings"]
                             ["anonymousMode"] ??
                         false,
+                
               ),
             ),
           );
@@ -245,6 +246,7 @@ class _LobbyScreenState
               Map<String, dynamic>.from(
             settings,
           ),
+          playerCount: players.length,
         ),
       ),
     );

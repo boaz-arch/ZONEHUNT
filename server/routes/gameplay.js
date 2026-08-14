@@ -6,10 +6,12 @@ const { assignRoles } = require("../gameLogic/roles");
 const { startZoneShrinking } = require("../gameLogic/zoneShrinking");
 const { startRedZoneSystem } = require("../gameLogic/redZone");
 
+
 function buildGameplayRouter(io) {
   const router = express.Router();
 
   router.post("/update-position", loadGame, (req, res) => {
+
     const { playerId, lat, lng } = req.body;
 
     const player = req.game.players.find((p) => p.id === playerId);
@@ -24,17 +26,12 @@ function buildGameplayRouter(io) {
       lastUpdate: Date.now(),
     };
 
-    console.log(
-      req.game.players.map((p) => ({
-        name: p.name,
-        id: p.id,
-        role: p.role,
-        lat: p.position.lat,
-        lng: p.position.lng,
-      })),
-    );
 
-    io.to(req.gameCode).emit("positionsUpdated", req.game.players);
+
+    io.to(req.gameCode).emit(
+      "positionsUpdated", 
+      req.game.players
+    );
 
     res.json({ success: true });
   });
@@ -109,6 +106,198 @@ function buildGameplayRouter(io) {
         startZoneShrinking(gameCode, io);
         startRedZoneSystem(gameCode, io);
 
+        gameStore.registerTimer(
+          gameCode,
+          setInterval(() => {
+
+            const game =
+              gameStore.getGame(gameCode);
+
+            if (!game) return;
+
+            if (game.state !== "gameplay") {
+              return;
+            }
+
+            const {
+              distanceMeters,
+            } = require("../utils/geo");
+
+            for (const player of game.players) {
+
+              if (player.caught) continue;
+
+              if (
+                !player.position ||
+                player.position.lat == null ||
+                player.position.lng == null
+              ) {
+                continue;
+              }
+
+              let zoneLat =
+                game.zoneState.currentCenterLat;
+
+              let zoneLng =
+                game.zoneState.currentCenterLng;
+
+              let zoneRadius =
+                game.zoneState.currentRadius;
+
+              if (
+                game.zoneState.shrinkStartedAt &&
+                game.zoneState.shrinkEndsAt &&
+                game.zoneState.nextRadius != null
+              ) {
+
+                const now = Date.now();
+
+                const progress =
+                  Math.min(
+                    1,
+                    Math.max(
+                      0,
+                      (
+                        now -
+                        game.zoneState.shrinkStartedAt
+                      ) /
+                      (
+                        game.zoneState.shrinkEndsAt -
+                        game.zoneState.shrinkStartedAt
+                      ),
+                    ),
+                  );
+
+                zoneRadius =
+                  game.zoneState.shrinkStartRadius +
+                  (
+                    game.zoneState.nextRadius -
+                    game.zoneState.shrinkStartRadius
+                  ) *
+                  progress;
+
+                zoneLat =
+                  game.zoneState.shrinkStartCenterLat +
+                  (
+                    game.zoneState.nextCenterLat -
+                    game.zoneState.shrinkStartCenterLat
+                  ) *
+                  progress;
+
+                zoneLng =
+                  game.zoneState.shrinkStartCenterLng +
+                  (
+                    game.zoneState.nextCenterLng -
+                    game.zoneState.shrinkStartCenterLng
+                  ) *
+                  progress;
+              }
+
+              const distance =
+                distanceMeters(
+                  player.position.lat,
+                  player.position.lng,
+                  zoneLat,
+                  zoneLng,
+                );
+
+              const outsideZone =
+                distance > zoneRadius;
+
+              if (!outsideZone) {
+
+                player.outsideZoneSince =
+                  null;
+
+                io.to(gameCode).emit(
+                  "outsideZoneUpdated",
+                  {
+                    playerId: player.id,
+                    remainingSeconds: null,
+                  },
+                );
+
+                continue;
+              }
+
+              if (!player.outsideZoneSince) {
+                player.outsideZoneSince =
+                  Date.now();
+              }
+
+              const elapsedMs =
+                Date.now() -
+                player.outsideZoneSince;
+
+              const limitMs =
+                game.settings.outsideZoneTime *
+                1000;
+
+              const remainingSeconds =
+                Math.max(
+                  0,
+                  Math.ceil(
+                    (limitMs - elapsedMs) / 1000,
+                  ),
+                );
+
+              io.to(gameCode).emit(
+                "outsideZoneUpdated",
+                {
+                  playerId: player.id,
+                  remainingSeconds,
+                },
+              );
+
+              if (
+                elapsedMs < limitMs
+              ) {
+                continue;
+              }
+
+              player.caught = true;
+
+              player.outsideZoneSince =
+                null;
+
+              io.to(gameCode).emit(
+                "playerCaught",
+                {
+                  playerId: player.id,
+                  players: game.players,
+                },
+              );
+
+              const aliveHiders =
+                game.players.filter(
+                  (p) =>
+                    p.role === "hider" &&
+                    !p.caught,
+                );
+
+              if (
+                aliveHiders.length === 0
+              ) {
+
+                game.state =
+                  "ended";
+
+                gameStore.clearGameTimers(
+                  gameCode,
+                );
+
+                io.to(gameCode).emit(
+                  "gameEnded",
+                  {
+                    winner:
+                      "Hunters",
+                  },
+                );
+              }
+            }
+          }, 1000),
+        );
+
         io.to(gameCode).emit("gameplayStarted", {
           zone: {
             centerLat: currentGame.zoneState.currentCenterLat,
@@ -129,11 +318,10 @@ function buildGameplayRouter(io) {
           setTimeout(() => {
             const currentGame = gameStore.getGame(gameCode);
             if (!currentGame) return;
-
+            
             if (currentGame.state !== "hidePhase") {
               return;
             }
-
             beginGameplay(currentGame);
           }, hideMs),
         );
@@ -164,12 +352,6 @@ function buildGameplayRouter(io) {
 
     if (aliveHiders.length === 0) {
       game.state = "ended";
-
-      // BUG FIX: the zone-shrinking timeout chain and the red-zone
-      // setInterval were never stopped when a game ended. They'd keep
-      // running in the background for the rest of the process's
-      // lifetime, still emitting to (now-empty) game rooms. Cancel them
-      // as soon as the game is over.
       gameStore.clearGameTimers(gameCode);
 
       io.to(gameCode).emit("gameEnded", {
