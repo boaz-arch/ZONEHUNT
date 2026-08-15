@@ -231,20 +231,20 @@ class _HidePhaseScreenState
       context,
       MaterialPageRoute(
         builder: (_) =>
-            GameplayScreen(
-          gameCode: widget.gameCode,
-          role: widget.role,
-          centerLat:
-              data["zone"]["centerLat"],
-          centerLng:
-              data["zone"]["centerLng"],
-          radius:
-              (data["currentRadius"] ??
-                      widget.radius)
-                  .toDouble(),
-          anonymousMode:
-              widget.anonymousMode,
-        ),
+          GameplayScreen(
+            gameCode: widget.gameCode,
+            role: widget.role,
+            centerLat: data["zone"]["centerLat"],
+            centerLng: data["zone"]["centerLng"],
+            radius:
+                (data["currentRadius"] ??
+                        widget.radius)
+                    .toDouble(),
+            anonymousMode:
+                widget.anonymousMode,
+            timerTitle: null,
+            timerEndsAt: null,
+          ),
       ),
     );
 

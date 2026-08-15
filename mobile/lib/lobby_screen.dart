@@ -105,25 +105,22 @@ class _LobbyScreenState
             context,
             MaterialPageRoute(
               builder: (_) =>
-                  GameplayScreen(
-                gameCode:
-                    widget.gameCode,
-                role:
-                    myPlayer["role"],
-                centerLat:
-                    data["zone"]["centerLat"],
-                centerLng:
-                    data["zone"]["centerLng"],
-                radius:
-                    (data["settings"]
-                            ["startRadius"])
-                        .toDouble(),
-                anonymousMode:
-                    data["settings"]
-                            ["anonymousMode"] ??
-                        false,
-                
-              ),
+                GameplayScreen(
+                  gameCode: widget.gameCode,
+                  role: myPlayer["role"],
+                  centerLat: data["zone"]["centerLat"],
+                  centerLng: data["zone"]["centerLng"],
+                  radius:
+                      (data["settings"]
+                              ["startRadius"])
+                          .toDouble(),
+                  anonymousMode:
+                      data["settings"]
+                              ["anonymousMode"] ??
+                          false,
+                  timerTitle: null,
+                  timerEndsAt: null,
+                ),
             ),
           );
 

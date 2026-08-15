@@ -7,6 +7,7 @@ import 'home_screen.dart';
 import 'lobby_screen.dart';
 import 'hide_phase_screen.dart';
 import 'gameplay/gameplay_screen.dart';
+import 'services/socket_service.dart';
 
 const _codeKey = 'activeGameCode';
 const _nameKey = 'activePlayerName';
@@ -29,10 +30,6 @@ Future<void> clearSession() async {
   await prefs.remove(_playerIdKey);
 }
 
-/// Checks for a saved game session and, if one exists and the game is
-/// still live on the server, rebuilds the correct screen for whatever
-/// phase the game is currently in (lobby / hide / gameplay). Falls back
-/// to the home screen if there's no session or the game has ended.
 Future<Widget> resolveStartScreen() async {
   final prefs = await SharedPreferences.getInstance();
   final code = prefs.getString(_codeKey);
@@ -47,7 +44,12 @@ Future<Widget> resolveStartScreen() async {
   PlayerData.playerName = name;
   PlayerData.playerId = playerId ?? "";
 
-  final state = await ApiService.getGameState(code, name);
+  SocketService.joinGame(code);
+
+  final state = await ApiService.getGameState(
+    code,
+    PlayerData.playerId,
+  );
 
   if (state == null || state["phase"] == "ended" || state["phase"] == null) {
     await clearSession();
@@ -55,9 +57,15 @@ Future<Widget> resolveStartScreen() async {
   }
 
   final settings = Map<String, dynamic>.from(state["settings"] ?? {});
+  final zoneState =
+    Map<String, dynamic>.from(
+      state["zoneState"] ?? {},
+    );
   final zone = Map<String, dynamic>.from(state["zone"] ?? {});
   final role = state["role"] as String? ?? "hider";
+  PlayerData.isCaught = state["caught"] == true;
   final anonymousMode = settings["anonymousMode"] == true;
+
 
   switch (state["phase"]) {
     case "lobby":
@@ -82,6 +90,11 @@ Future<Widget> resolveStartScreen() async {
         centerLng: (zone["centerLng"] as num).toDouble(),
         radius: (zone["radius"] as num).toDouble(),
         anonymousMode: anonymousMode,
+        timerTitle:
+            state["timerTitle"],
+        timerEndsAt:
+            state["timerEndsAt"],
+        zoneState: zoneState,
       );
 
     default:

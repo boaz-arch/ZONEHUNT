@@ -37,6 +37,11 @@ class GameplayScreen extends StatefulWidget {
 
   final bool anonymousMode;
 
+  final String? timerTitle;
+  final int? timerEndsAt;
+
+  final Map<String, dynamic>? zoneState;
+
   const GameplayScreen({
     super.key,
     required this.role,
@@ -45,6 +50,9 @@ class GameplayScreen extends StatefulWidget {
     required this.radius,
     required this.gameCode,
     required this.anonymousMode,
+    required this.timerTitle,
+    required this.timerEndsAt,
+    this.zoneState,
   });
 
   @override
@@ -69,7 +77,7 @@ class _GameplayScreenState extends State<GameplayScreen>
   final ZoneTimerState zoneTimer = ZoneTimerState();
   Timer? timerUpdate;
 
-  bool isCaught = false;
+  bool isCaught = PlayerData.isCaught;
   bool markingCaught = false;
 
   bool showPlayerList = false;
@@ -82,6 +90,17 @@ class _GameplayScreenState extends State<GameplayScreen>
   @override
   void initState() {
     super.initState();
+        zoneTimer.title =
+        widget.timerTitle ??
+        "NEXT SHRINK";
+
+    if (widget.timerEndsAt != null) {
+      zoneTimer.endsAt =
+          DateTime.fromMillisecondsSinceEpoch(
+        widget.timerEndsAt!,
+      );
+    }
+    isCaught = PlayerData.isCaught;
 
     timerUpdate = Timer.periodic(const Duration(seconds: 1), (_) {
       if (zoneTimer.endsAt == null) return;
@@ -98,9 +117,57 @@ class _GameplayScreenState extends State<GameplayScreen>
       displayedCenterLat: widget.centerLat,
       displayedCenterLng: widget.centerLng,
       displayedRadius: widget.radius,
+
+      nextCenterLat:
+          (widget.zoneState?["nextCenterLat"] as num?)
+              ?.toDouble(),
+
+      nextCenterLng:
+          (widget.zoneState?["nextCenterLng"] as num?)
+              ?.toDouble(),
+
+      nextRadius:
+          (widget.zoneState?["nextRadius"] as num?)
+              ?.toDouble(),
     );
 
-    _radiusController = AnimationController(vsync: this, duration: Duration.zero);
+
+    _radiusController = AnimationController(
+      vsync: this, 
+      duration: Duration.zero
+    );
+
+    final zs = widget.zoneState;
+
+    if (
+        zs != null &&
+        zs["shrinkEndsAt"] != null &&
+        zs["nextRadius"] != null &&
+        zs["nextCenterLat"] != null &&
+        zs["nextCenterLng"] != null) {
+
+      final remainingMs =
+          (zs["shrinkEndsAt"] as int) -
+          DateTime.now()
+              .millisecondsSinceEpoch;
+
+      if (remainingMs > 0) {
+
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) {
+
+          animateToZone(
+            (zs["nextRadius"] as num)
+                .toDouble(),
+            (zs["nextCenterLat"] as num)
+                .toDouble(),
+            (zs["nextCenterLng"] as num)
+                .toDouble(),
+            remainingMs,
+          );
+        });
+      }
+    }
 
     gps = GpsController(
       gameCode: widget.gameCode,
@@ -159,6 +226,7 @@ class _GameplayScreenState extends State<GameplayScreen>
 
       if (caughtPlayerId == PlayerData.playerId) {
         isCaught = true;
+        PlayerData.isCaught = true;
       }
     });
   }
@@ -263,7 +331,10 @@ class _GameplayScreenState extends State<GameplayScreen>
 
     setState(() {
       markingCaught = false;
-      if (success) isCaught = true;
+      if (success){
+        isCaught = true;
+        PlayerData.isCaught = true;
+      } 
     });
   }
 

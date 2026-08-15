@@ -9,4 +9,11 @@ class SocketService {
       'autoConnect': true,
     },
   );
+
+  static void joinGame(String gameCode) {
+    socket.emit(
+      "joinLobby",
+      gameCode,
+    );
+  }
 }

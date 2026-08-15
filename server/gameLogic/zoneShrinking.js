@@ -15,14 +15,6 @@ function startZoneShrinking(gameCode, io) {
   const radiusStep =
     zoneCount <= 1 ? 0 : (startRadius - finalRadius) / (zoneCount - 1);
 
-  // Returns the game only if it still exists AND is still actively playing.
-  // BUG FIX: previously these callbacks only checked `if (!game) return`,
-  // never `game.state`. Since /mark-caught marks a finished game as "ended"
-  // instead of deleting it, a callback that was already mid-flight when the
-  // game ended would sail past that check and schedule its *next* timer
-  // anyway - so clearGameTimers() alone couldn't fully stop the chain (it
-  // can only cancel timers that haven't fired yet, not ones already
-  // executing). Checking state here closes that race.
   function getLiveGame() {
     const currentGame = gameStore.getGame(gameCode);
     if (!currentGame) return null;
@@ -71,9 +63,16 @@ function startZoneShrinking(gameCode, io) {
 
     activeGame.zoneState.currentZoneNumber++;
 
+    activeGame.zoneState.phase =
+      "SHRINKING";
+
+    activeGame.zoneState.phaseEndsAt =
+      Date.now() + zoneShrinkMs;
+
     io.to(gameCode).emit("zoneTimerUpdated", {
-      phase: "SHRINKING",
-      phaseEndsAt: Date.now() + zoneShrinkMs,
+      phase: activeGame.zoneState.phase,
+      phaseEndsAt:
+        activeGame.zoneState.phaseEndsAt,
     });
 
     activeGame.zoneState.shrinkStartedAt =
@@ -136,9 +135,16 @@ function startZoneShrinking(gameCode, io) {
             zoneState: finishedGame.zoneState,
           });
 
+          finishedGame.zoneState.phase =
+            "FINAL ZONE";
+
+          finishedGame.zoneState.phaseEndsAt =
+            null;
+
           io.to(gameCode).emit("zoneTimerUpdated", {
-            phase: "FINAL ZONE",
-            phaseEndsAt: null,
+            phase: finishedGame.zoneState.phase,
+            phaseEndsAt:
+              finishedGame.zoneState.phaseEndsAt,
           });
 
           return;
@@ -146,9 +152,16 @@ function startZoneShrinking(gameCode, io) {
 
         createPreviewZone(finishedGame);
 
+        finishedGame.zoneState.phase =
+          "NEXT SHRINK";
+
+        finishedGame.zoneState.phaseEndsAt =
+          Date.now() + zoneWaitMs;
+
         io.to(gameCode).emit("zoneTimerUpdated", {
-          phase: "NEXT SHRINK",
-          phaseEndsAt: Date.now() + zoneWaitMs,
+          phase: finishedGame.zoneState.phase,
+          phaseEndsAt:
+            finishedGame.zoneState.phaseEndsAt,
         });
 
         gameStore.registerTimer(
@@ -166,9 +179,16 @@ function startZoneShrinking(gameCode, io) {
       const currentGame = getLiveGame();
       if (!currentGame) return;
 
+      currentGame.zoneState.phase =
+        "NEXT SHRINK";
+
+      currentGame.zoneState.phaseEndsAt =
+        Date.now() + zoneWaitMs;
+
       io.to(gameCode).emit("zoneTimerUpdated", {
-        phase: "NEXT SHRINK",
-        phaseEndsAt: Date.now() + zoneWaitMs,
+        phase: currentGame.zoneState.phase,
+        phaseEndsAt:
+          currentGame.zoneState.phaseEndsAt,
       });
 
       createPreviewZone(currentGame);

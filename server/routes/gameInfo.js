@@ -20,19 +20,118 @@ function buildGameInfoRouter() {
   });
 
   router.get("/game-state/:code", (req, res) => {
-    const game = gameStore.getGame(req.params.code);
+    const game =
+      gameStore.getGame(
+        req.params.code,
+      );
 
     if (!game) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({
+        success: false,
+      });
     }
 
+    const playerId =
+      req.query.playerId;
+
+    const player =
+      game.players.find(
+        (p) => p.id === playerId,
+      );
+
+    const role =
+      player?.role ?? "hider";
+
+    const caught =
+      player?.caught ?? false;
+
+    let phase =
+      game.state;
+
+    if (phase === "hidePhase") {
+      phase = "hide";
+    }
+
+    let centerLat =
+      game.zoneState?.currentCenterLat ??
+      game.zone?.centerLat;
+
+    let centerLng =
+      game.zoneState?.currentCenterLng ??
+      game.zone?.centerLng;
+
+    let radius =
+      game.zoneState?.currentRadius ??
+      game.settings.startRadius;
+
+    if (
+      game.zoneState?.shrinkStartedAt &&
+      game.zoneState?.shrinkEndsAt &&
+      game.zoneState?.nextRadius != null
+    ) {
+
+      const progress =
+        Math.min(
+          1,
+          Math.max(
+            0,
+            (
+              Date.now() -
+              game.zoneState.shrinkStartedAt
+            ) /
+            (
+              game.zoneState.shrinkEndsAt -
+              game.zoneState.shrinkStartedAt
+            ),
+          ),
+        );
+
+      radius =
+        game.zoneState.shrinkStartRadius +
+        (
+          game.zoneState.nextRadius -
+          game.zoneState.shrinkStartRadius
+        ) *
+        progress;
+
+      centerLat =
+        game.zoneState.shrinkStartCenterLat +
+        (
+          game.zoneState.nextCenterLat -
+          game.zoneState.shrinkStartCenterLat
+        ) *
+        progress;
+
+      centerLng =
+        game.zoneState.shrinkStartCenterLng +
+        (
+          game.zoneState.nextCenterLng -
+          game.zoneState.shrinkStartCenterLng
+        ) *
+        progress;
+    }
+
+    const zone = {
+      centerLat,
+      centerLng,
+      radius,
+    };
+
     res.json({
-      state: game.state,
-      hidePhaseEndsAt: game.hidePhaseEndsAt,
-      players: game.players,
-      settings: game.settings,
-      zone: game.zone,
-      zoneState: game.zoneState,
+      phase,
+      role,
+      caught,
+      timerTitle:
+        game.zoneState?.phase,
+      timerEndsAt:
+        game.zoneState?.phaseEndsAt,
+      hidePhaseEndsAt:
+        game.hidePhaseEndsAt,
+      settings:
+        game.settings,
+      zone,
+      zoneState:
+        game.zoneState,
     });
   });
 
