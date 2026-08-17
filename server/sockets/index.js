@@ -99,6 +99,19 @@ function registerSocketHandlers(io) {
 
       player.disconnected = true;
 
+      io.to(gameCode).emit(
+        "playerDisconnected",
+        {
+          playerId,
+        },
+      );
+
+      io.to(gameCode).emit(
+        "lobbyUpdated",
+        game,
+      );
+
+
       const timer =
         setTimeout(() => {
 
@@ -126,6 +139,10 @@ function registerSocketHandlers(io) {
 
           console.log(
             "Reconnect window expired:",
+            playerId,
+          );
+
+          gameStore.clearReconnectTimer(
             playerId,
           );
 
@@ -162,7 +179,8 @@ function registerSocketHandlers(io) {
             const newHost =
               latestGame.players.find(
                 (p) =>
-                  p.id !== playerId,
+                  p.id !== playerId && 
+                  !p.disconnected,
               );
 
             if (!newHost) {
@@ -180,6 +198,7 @@ function registerSocketHandlers(io) {
             }
 
             newHost.host = true;
+            newHost.disconnected = false;
 
             latestGame.players.splice(
               playerIndex,

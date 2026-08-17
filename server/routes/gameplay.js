@@ -149,8 +149,6 @@ function buildGameplayRouter(io) {
  
             for (const player of game.players) {
  
-              if (player.caught) continue;
-
               if (player.caught) {
                 io.to(gameCode).emit(
                   "outsideZoneUpdated",

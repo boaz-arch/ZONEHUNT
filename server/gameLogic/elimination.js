@@ -44,7 +44,7 @@ function maybeEndGameByElimination(game, gameCode, io) {
 
   if (aliveHiders.length > 0) return;
 
-  endGame(game, gameCode, io, "Hunters");
+  endGame(game, gameCode, io, "hunters");
 }
 
 function endGame(game, gameCode, io, winner) {

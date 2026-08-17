@@ -19,6 +19,15 @@ function getGame(gameCode) {
 }
  
 function deleteGame(gameCode) {
+  const game = games[gameCode];
+  if (game) {
+    for (const player of game.players) {
+      clearReconnectTimer(
+        player.id,
+      );
+    }
+  }
+
   clearGameTimers(gameCode);
   delete outsideZoneTimers[gameCode];
   delete games[gameCode];
@@ -60,8 +69,15 @@ function registerReconnectTimer(
   playerId,
   timerHandle,
 ) {
-  reconnectTimers[playerId] = timerHandle;
+
+  clearReconnectTimer(
+    playerId,
+  );
+
+  reconnectTimers[playerId] =
+    timerHandle;
 }
+
 
 function clearReconnectTimer(
   playerId,
