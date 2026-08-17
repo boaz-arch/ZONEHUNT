@@ -153,6 +153,9 @@ class _HidePhaseScreenState
           16,
         );
       },
+      
+      onStatusChanged: (status) {},
+
     );
 
   gps.initialize();

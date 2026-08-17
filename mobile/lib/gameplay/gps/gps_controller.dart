@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
  
 import '../../services/api_service.dart';
+import 'gps_status.dart';
  
  
 class _LastSentPosition {
@@ -18,19 +19,40 @@ class GpsController {
   final void Function(Position position) onPositionChanged;
  
   final void Function(Position initialPosition) onInitialFix;
- 
+  
+  final void Function( GpsStatus status ) onStatusChanged;
+
+  Timer? _permissionCheckTimer;
+
   StreamSubscription<Position>? _subscription;
+
   _LastSentPosition? _lastSent;
+
+  Position? _lastReceivedPosition;
+  DateTime? _lastPositionTime;
  
   GpsController({
     required this.gameCode,
     required this.playerId,
     required this.onPositionChanged,
     required this.onInitialFix,
+    required this.onStatusChanged,
   });
  
   Future<void> initialize() async {
-    final permission = await requestLocationPermission();
+    final serviceEnabled =
+        await Geolocator.isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+      onStatusChanged(
+        GpsStatus.disabled,
+      );
+
+      return;
+    }
+
+    final permission = 
+        await requestLocationPermission();
  
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
@@ -42,6 +64,7 @@ class GpsController {
     onInitialFix(position);
  
     startPositionStream();
+    startPermissionMonitoring();
   }
  
   Future<LocationPermission> requestLocationPermission() async {
@@ -53,18 +76,127 @@ class GpsController {
  
     return permission;
   }
+
+  bool looksLikeTeleport(
+    Position position,
+  ) {
+
+    if (
+      _lastReceivedPosition == null ||
+      _lastPositionTime == null
+    ) {
+      return false;
+    }
+
+    final distance =
+        Geolocator.distanceBetween(
+      _lastReceivedPosition!.latitude,
+      _lastReceivedPosition!.longitude,
+      position.latitude,
+      position.longitude,
+    );
+
+    final elapsedSeconds =
+        DateTime.now()
+            .difference(
+              _lastPositionTime!,
+            )
+            .inSeconds;
+
+    if (elapsedSeconds <= 0) {
+      return false;
+    }
+
+    final speedMetersPerSecond =
+        distance / elapsedSeconds;
+
+    return speedMetersPerSecond > 50;
+  }
+
+
+
+  void startPermissionMonitoring() {
+    _permissionCheckTimer =
+        Timer.periodic(
+      const Duration(seconds: 3),
+      (_) async {
+
+        final permission =
+            await Geolocator.checkPermission();
+
+        if (
+            permission ==
+                LocationPermission.denied) {
+
+          onStatusChanged(
+            GpsStatus.permissionDenied,
+          );
+
+        } else if (
+            permission ==
+                LocationPermission.deniedForever) {
+
+          onStatusChanged(
+            GpsStatus.permissionDeniedForever,
+          );
+
+        }
+      },
+    );
+  }
  
   void startPositionStream() {
     _subscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    ).listen((position) {
-      onPositionChanged(position);
- 
-      if (!shouldSendPosition(position)) return;
- 
-      _lastSent = _LastSentPosition(DateTime.now(), position);
-      sendPosition(position);
-    });
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
+    ).listen(
+      (position) {
+        if (position.accuracy > 50) {
+          onStatusChanged(
+            GpsStatus.poorAccuracy,
+          );
+        } else {
+          onStatusChanged(
+            GpsStatus.ok,
+          );
+        }
+
+        if (looksLikeTeleport(position)) {
+          return;
+        }
+
+        _lastReceivedPosition = position;
+        
+        _lastPositionTime = DateTime.now();
+
+        onPositionChanged(position);
+
+        // Temporarily comment out
+
+        // if (position.accuracy > 100) {
+        //   return;
+        // }
+
+        if (!shouldSendPosition(position)) {
+          return;
+        }
+
+        _lastSent = _LastSentPosition(
+          DateTime.now(),
+          position,
+        );
+
+        sendPosition(position);
+      },
+      onError: (_) {
+
+        onStatusChanged(
+          GpsStatus.signalLost,
+        );
+
+      },
+    );
   }
  
   bool shouldSendPosition(Position position) {
@@ -102,6 +234,7 @@ class GpsController {
  
   void dispose() {
     _subscription?.cancel();
+    _permissionCheckTimer?.cancel();
   }
 }
  

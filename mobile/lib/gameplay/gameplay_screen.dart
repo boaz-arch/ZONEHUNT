@@ -5,12 +5,11 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
  
-// Adjust these three imports to match your project's actual layout if it
-// differs from lib/gameplay/... + lib/services/... + lib root.
 import '../services/api_service.dart';
 import '../player_data.dart';
 import '../game_over_screen.dart';
 import '../session.dart';
+import 'gps/gps_status.dart';
  
 import 'models/player.dart';
 import 'models/red_zone.dart';
@@ -26,6 +25,8 @@ import 'widgets/remaining_hiders_panel.dart';
 import 'widgets/zone_timer_panel.dart';
 import 'widgets/outside_zone_banner.dart';
 import 'widgets/caught_button.dart';
+import 'widgets/gps_status_banner.dart';
+
  
 class GameplayScreen extends StatefulWidget {
   final String role;
@@ -85,6 +86,8 @@ class _GameplayScreenState extends State<GameplayScreen>
   int? outsideZoneSecondsRemaining;
  
   late final GameSocketListener socketListener;
+
+  GpsStatus gpsStatus = GpsStatus.ok;
  
  
   @override
@@ -189,6 +192,14 @@ class _GameplayScreenState extends State<GameplayScreen>
           16,
         );
       },
+
+      onStatusChanged: (status) {
+        setState(() {
+          gpsStatus = status;
+        });
+
+      },
+    
     );
     gps.initialize();
  
@@ -496,7 +507,16 @@ class _GameplayScreenState extends State<GameplayScreen>
                 endsAt: zoneTimer.endsAt,
                 secondsRemaining: zoneTimer.secondsRemaining,
               ),
- 
+
+              Positioned(
+                top: 60,
+                left: 12,
+                right: 12,
+                child: GpsStatusBanner(
+                  status: gpsStatus,
+                ),
+              ),
+              
               if (outsideZone)
                 OutsideZoneBanner(
                   distanceOutside: distanceOutside,

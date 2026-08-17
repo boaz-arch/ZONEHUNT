@@ -22,7 +22,10 @@ class OutsideZoneBanner extends StatelessWidget {
         child: Center(
           child: Container(
             width: 220,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 4,
+            ),
             decoration: BoxDecoration(
               color: Colors.red,
               borderRadius: BorderRadius.circular(12),
@@ -47,7 +50,10 @@ class OutsideZoneBanner extends StatelessWidget {
       child: Center(
         child: Container(
           width: 220,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 4,
+          ),
           decoration: BoxDecoration(
             color: Colors.red,
             borderRadius: BorderRadius.circular(12),

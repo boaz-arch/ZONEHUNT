@@ -8,6 +8,7 @@ double distanceBetween(
 ) {
   return Geolocator.distanceBetween(lat1, lng1, lat2, lng2);
 }
+const zoneBuffer = 10;
  
 bool isInsideCircle({
   required double pointLat,
@@ -34,7 +35,7 @@ bool isOutsideZone({
         centerLat,
         centerLng,
       ) >
-      radius;
+      (radius + zoneBuffer);
 }
  
 /// Same rule as the original `getDistanceFromCenter()`.

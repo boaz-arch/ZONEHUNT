@@ -235,9 +235,11 @@ function buildGameplayRouter(io) {
                   zoneLng,
                 );
  
+              const zoneBuffer = 5;
+
               const outsideZone =
-                distance > zoneRadius;
- 
+                distance > zoneRadius + zoneBuffer;
+              
               if (!outsideZone) {
  
                 player.outsideZoneSince =
