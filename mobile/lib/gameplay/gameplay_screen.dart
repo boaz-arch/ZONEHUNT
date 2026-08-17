@@ -1,17 +1,17 @@
 import 'dart:async';
-
+ 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-
+ 
 // Adjust these three imports to match your project's actual layout if it
 // differs from lib/gameplay/... + lib/services/... + lib root.
 import '../services/api_service.dart';
 import '../player_data.dart';
 import '../game_over_screen.dart';
 import '../session.dart';
-
+ 
 import 'models/player.dart';
 import 'models/red_zone.dart';
 import 'models/zone_state.dart';
@@ -26,22 +26,22 @@ import 'widgets/remaining_hiders_panel.dart';
 import 'widgets/zone_timer_panel.dart';
 import 'widgets/outside_zone_banner.dart';
 import 'widgets/caught_button.dart';
-
+ 
 class GameplayScreen extends StatefulWidget {
   final String role;
   final String gameCode;
-
+ 
   final double centerLat;
   final double centerLng;
   final double radius;
-
+ 
   final bool anonymousMode;
-
+ 
   final String? timerTitle;
   final int? timerEndsAt;
-
+ 
   final Map<String, dynamic>? zoneState;
-
+ 
   const GameplayScreen({
     super.key,
     required this.role,
@@ -54,46 +54,46 @@ class GameplayScreen extends StatefulWidget {
     required this.timerEndsAt,
     this.zoneState,
   });
-
+ 
   @override
   State<GameplayScreen> createState() => _GameplayScreenState();
 }
-
+ 
 class _GameplayScreenState extends State<GameplayScreen>
     with SingleTickerProviderStateMixin {
   List<Player> teammates = [];
-
+ 
   Position? currentPosition;
-
+ 
   late final GpsController gps;
-
+ 
   final MapController mapController = MapController();
-
+ 
   late ZoneState zone;
   late final AnimationController _radiusController;
-
+ 
   RedZone? redZone;
-
+ 
   final ZoneTimerState zoneTimer = ZoneTimerState();
   Timer? timerUpdate;
-
+ 
   bool isCaught = PlayerData.isCaught;
   bool markingCaught = false;
-
+ 
   bool showPlayerList = false;
   
   int? outsideZoneSecondsRemaining;
-
+ 
   late final GameSocketListener socketListener;
-
-
+ 
+ 
   @override
   void initState() {
     super.initState();
         zoneTimer.title =
         widget.timerTitle ??
         "NEXT SHRINK";
-
+ 
     if (widget.timerEndsAt != null) {
       zoneTimer.endsAt =
           DateTime.fromMillisecondsSinceEpoch(
@@ -101,61 +101,61 @@ class _GameplayScreenState extends State<GameplayScreen>
       );
     }
     isCaught = PlayerData.isCaught;
-
+ 
     timerUpdate = Timer.periodic(const Duration(seconds: 1), (_) {
       if (zoneTimer.endsAt == null) return;
       final remaining = zoneTimer.endsAt!.difference(DateTime.now()).inSeconds;
-
+ 
       setState(() {
         zoneTimer.secondsRemaining = remaining < 0 ? 0 : remaining;
       });
     });
-
+ 
     zone = ZoneState(
       currentCenterLat: widget.centerLat,
       currentCenterLng: widget.centerLng,
       displayedCenterLat: widget.centerLat,
       displayedCenterLng: widget.centerLng,
       displayedRadius: widget.radius,
-
+ 
       nextCenterLat:
           (widget.zoneState?["nextCenterLat"] as num?)
               ?.toDouble(),
-
+ 
       nextCenterLng:
           (widget.zoneState?["nextCenterLng"] as num?)
               ?.toDouble(),
-
+ 
       nextRadius:
           (widget.zoneState?["nextRadius"] as num?)
               ?.toDouble(),
     );
-
-
+ 
+ 
     _radiusController = AnimationController(
       vsync: this, 
       duration: Duration.zero
     );
-
+ 
     final zs = widget.zoneState;
-
+ 
     if (
         zs != null &&
         zs["shrinkEndsAt"] != null &&
         zs["nextRadius"] != null &&
         zs["nextCenterLat"] != null &&
         zs["nextCenterLng"] != null) {
-
+ 
       final remainingMs =
           (zs["shrinkEndsAt"] as int) -
           DateTime.now()
               .millisecondsSinceEpoch;
-
+ 
       if (remainingMs > 0) {
-
+ 
         WidgetsBinding.instance
             .addPostFrameCallback((_) {
-
+ 
           animateToZone(
             (zs["nextRadius"] as num)
                 .toDouble(),
@@ -168,7 +168,7 @@ class _GameplayScreenState extends State<GameplayScreen>
         });
       }
     }
-
+ 
     gps = GpsController(
       gameCode: widget.gameCode,
       playerId: PlayerData.playerId,
@@ -177,13 +177,13 @@ class _GameplayScreenState extends State<GameplayScreen>
           currentPosition = position;
         });
       },
-
+ 
       onInitialFix: (position) {
         setState(() {
           currentPosition = position;
         });
-
-
+ 
+ 
         mapController.move(
           LatLng(position.latitude, position.longitude),
           16,
@@ -191,9 +191,9 @@ class _GameplayScreenState extends State<GameplayScreen>
       },
     );
     gps.initialize();
-
+ 
     loadInitialTeammates();
-
+ 
     socketListener = GameSocketListener(
       onZoneTimerUpdated: _onZoneTimerUpdated,
       onPositionsUpdated: _onPositionsUpdated,
@@ -205,32 +205,32 @@ class _GameplayScreenState extends State<GameplayScreen>
     );
     socketListener.register();
   }
-
+ 
   void _onZoneTimerUpdated(String phase, DateTime? endsAt) {
     setState(() {
       zoneTimer.title = phase;
       zoneTimer.endsAt = endsAt;
     });
   }
-
+ 
   void _onPositionsUpdated(List rawPlayers) {
     setState(() {
       _setTeammates(rawPlayers);
       _syncCaughtFromTeammates();
     });
   }
-
+ 
   void _onPlayerCaught(List rawPlayers, dynamic caughtPlayerId) {
     setState(() {
       _setTeammates(rawPlayers);
-
+ 
       if (caughtPlayerId == PlayerData.playerId) {
         isCaught = true;
         PlayerData.isCaught = true;
       }
     });
   }
-
+ 
   void _onZoneUpdated(Map zoneStateJson, int durationMs) {
     setState(() {
       zone.currentCenterLat = (zoneStateJson["currentCenterLat"] as num).toDouble();
@@ -239,7 +239,7 @@ class _GameplayScreenState extends State<GameplayScreen>
       zone.nextCenterLng = (zoneStateJson["nextCenterLng"] as num?)?.toDouble();
       zone.nextRadius = (zoneStateJson["nextRadius"] as num?)?.toDouble();
     });
-
+ 
     if (durationMs > 0 &&
         zoneStateJson["nextRadius"] != null &&
         zoneStateJson["nextCenterLat"] != null &&
@@ -252,37 +252,37 @@ class _GameplayScreenState extends State<GameplayScreen>
       );
     }
   }
-
+ 
   void _onRedZoneUpdated(Map<String, dynamic> rawRedZone) {
     setState(() {
       redZone = RedZone.fromJson(rawRedZone);
     });
   }
-
+ 
   void _onGameEnded(String winner) {
     goToGameOver(winner);
   }
-
+ 
   void _setTeammates(List rawPlayers) {
     teammates = Player.listFromJson(rawPlayers);
   }
-
+ 
   void _syncCaughtFromTeammates() {
     final me = _findPlayerById(PlayerData.playerId);
     if (me != null && me.caught) {
       isCaught = true;
     }
   }
-
+ 
   void _onOutsideZoneUpdated(
     String playerId,
     int? remainingSeconds,
   ) {
-
+ 
     if (playerId != PlayerData.playerId) {
       return;
     }
-
+ 
     setState(() {
       outsideZoneSecondsRemaining =
           remainingSeconds;
@@ -295,22 +295,22 @@ class _GameplayScreenState extends State<GameplayScreen>
     }
     return null;
   }
-
+ 
   Future<void> loadInitialTeammates() async {
     final positions = await ApiService.getPositions(widget.gameCode);
     if (positions == null || !mounted) return;
-
+ 
     setState(() {
       _setTeammates(positions);
       _syncCaughtFromTeammates();
     });
   }
-
+ 
   void goToGameOver(String winner) async {
     await clearSession();
-
+ 
     if (!mounted) return;
-
+ 
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -319,16 +319,16 @@ class _GameplayScreenState extends State<GameplayScreen>
       (route) => false,
     );
   }
-
+ 
   Future<void> markCaught() async {
     if (markingCaught || isCaught) return;
-
+ 
     setState(() => markingCaught = true);
-
+ 
     final success = await ApiService.markCaught(widget.gameCode, PlayerData.playerId);
-
+ 
     if (!mounted) return;
-
+ 
     setState(() {
       markingCaught = false;
       if (success){
@@ -337,7 +337,7 @@ class _GameplayScreenState extends State<GameplayScreen>
       } 
     });
   }
-
+ 
   void animateToZone(
     double targetRadius,
     double targetLat,
@@ -352,23 +352,23 @@ class _GameplayScreenState extends State<GameplayScreen>
       });
       return;
     }
-
+ 
     final startRadius = zone.displayedRadius;
     final startLat = zone.displayedCenterLat;
     final startLng = zone.displayedCenterLng;
-
+ 
     _radiusController.duration = Duration(milliseconds: durationMs);
     _radiusController.reset();
-
+ 
     final radiusAnimation = Tween<double>(begin: startRadius, end: targetRadius)
         .animate(CurvedAnimation(parent: _radiusController, curve: Curves.linear));
-
+ 
     final latAnimation = Tween<double>(begin: startLat, end: targetLat)
         .animate(CurvedAnimation(parent: _radiusController, curve: Curves.linear));
-
+ 
     final lngAnimation = Tween<double>(begin: startLng, end: targetLng)
         .animate(CurvedAnimation(parent: _radiusController, curve: Curves.linear));
-
+ 
     void listener() {
       setState(() {
         zone.displayedRadius = radiusAnimation.value;
@@ -376,22 +376,22 @@ class _GameplayScreenState extends State<GameplayScreen>
         zone.displayedCenterLng = lngAnimation.value;
       });
     }
-
+ 
     radiusAnimation.addListener(listener);
-
+ 
     _radiusController.forward().whenCompleteOrCancel(() {
       radiusAnimation.removeListener(listener);
     });
   }
-
-
+ 
+ 
   LatLng getPlayerPoint() {
     if (currentPosition == null) {
       return LatLng(zone.displayedCenterLat, zone.displayedCenterLng);
     }
     return LatLng(currentPosition!.latitude, currentPosition!.longitude);
   }
-
+ 
   @override
   void dispose() {
     socketListener.dispose();
@@ -400,40 +400,40 @@ class _GameplayScreenState extends State<GameplayScreen>
     timerUpdate?.cancel();
     super.dispose();
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     final playerPoint = getPlayerPoint();
     final mapCenter = playerPoint;
-
-
+ 
+ 
     final outsideZone = geo.isOutsideZone(
       currentPosition: currentPosition,
       centerLat: zone.displayedCenterLat,
       centerLng: zone.displayedCenterLng,
       radius: zone.displayedRadius,
     );
-
+ 
     final distanceOutside = geo.distanceOutsideZone(
       currentPosition: currentPosition,
       centerLat: zone.displayedCenterLat,
       centerLng: zone.displayedCenterLng,
       radius: zone.displayedRadius,
     );
-
+ 
     final visibleTeammates = visibility.getVisibleTeammates(
       teammates: teammates,
       myId: PlayerData.playerId,
       myRole: widget.role,
       redZone: redZone,
     );
-
-
+ 
+ 
     final playerNumbers = visibility.getPlayerNumbers(teammates);
     final hiders = visibility.getHiders(teammates);
     final hunters = visibility.getHunters(teammates);
     final remainingHiders = hiders.where((p) => !p.caught).length;
-
+ 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {},
@@ -457,13 +457,13 @@ class _GameplayScreenState extends State<GameplayScreen>
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     ),
-
+ 
                     PolygonLayer(polygons: buildSafeZonePolygons(zone)),
-
+ 
                     CircleLayer(
                       circles: buildZoneCircles(zone: zone, redZone: redZone),
                     ),
-
+ 
                     MarkerLayer(
                       markers: [
                         
@@ -481,7 +481,7 @@ class _GameplayScreenState extends State<GameplayScreen>
                   ],
                 ),
               ),
-
+ 
               RemainingHidersPanel(
                 remainingHiders: remainingHiders,
                 showPlayerList: showPlayerList,
@@ -490,20 +490,20 @@ class _GameplayScreenState extends State<GameplayScreen>
                 hunters: hunters,
                 playerNumbers: playerNumbers,
               ),
-
+ 
               ZoneTimerPanel(
                 title: zoneTimer.title,
                 endsAt: zoneTimer.endsAt,
                 secondsRemaining: zoneTimer.secondsRemaining,
               ),
-
+ 
               if (outsideZone)
                 OutsideZoneBanner(
                   distanceOutside: distanceOutside,
                   secondsRemaining:
                       outsideZoneSecondsRemaining ?? -1,
                 ),
-
+ 
               if (widget.role == "hider" && !isCaught)
                 CaughtButton(isSubmitting: markingCaught, onPressed: markCaught),
             ],

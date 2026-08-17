@@ -17,6 +17,8 @@ function buildLobbyRouter(io) {
 
       state: "lobby",
 
+      gameplayStarted: false,
+
       settings: {
         gameDuration: 60,
         hideTime: 5,

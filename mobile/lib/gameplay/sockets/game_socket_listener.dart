@@ -1,7 +1,6 @@
-
 import '../../services/socket_service.dart';
-
-
+ 
+ 
 class GameSocketListener {
   final void Function(String phase, DateTime? endsAt) onZoneTimerUpdated;
   final void Function(List rawPlayers) onPositionsUpdated;
@@ -10,7 +9,7 @@ class GameSocketListener {
   final void Function(Map<String, dynamic> rawRedZone) onRedZoneUpdated;
   final void Function(String winner) onGameEnded;
   final void Function(String playerId, int? remainingSeconds,) onOutsideZoneUpdated;
-
+ 
   GameSocketListener({
     required this.onZoneTimerUpdated,
     required this.onPositionsUpdated,
@@ -20,7 +19,7 @@ class GameSocketListener {
     required this.onGameEnded,
     required this.onOutsideZoneUpdated,
   });
-
+ 
   void register() {
     SocketService.socket.on("zoneTimerUpdated", _handleZoneTimerUpdated);
     SocketService.socket.on("positionsUpdated", _handlePositionsUpdated);
@@ -30,39 +29,39 @@ class GameSocketListener {
     SocketService.socket.on("gameEnded", _handleGameEnded);
     SocketService.socket.on("outsideZoneUpdated", _handleOutsideZoneUpdated);
   }
-
+ 
   void _handleZoneTimerUpdated(dynamic data) {
     final endsAt = data["phaseEndsAt"] == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(data["phaseEndsAt"]);
-
+ 
     onZoneTimerUpdated(data["phase"], endsAt);
   }
-
+ 
   void _handlePositionsUpdated(dynamic players) {
     onPositionsUpdated(players as List);
   }
-
+ 
   void _handlePlayerCaught(dynamic data) {
     onPlayerCaught(data["players"] as List, data["playerId"]);
   }
-
+ 
   void _handleZoneUpdated(dynamic data) {
     final zoneState = data["zoneState"];
     if (zoneState == null) return;
-
+ 
     final durationMs = (data["durationMs"] as num?)?.toInt() ?? 0;
     onZoneUpdated(zoneState, durationMs);
   }
-
+ 
   void _handleRedZoneUpdated(dynamic data) {
     onRedZoneUpdated(Map<String, dynamic>.from(data));
   }
-
+ 
   void _handleGameEnded(dynamic data) {
     onGameEnded(data["winner"]);
   }
-
+ 
   void _handleOutsideZoneUpdated(
     dynamic data,
   ) {
@@ -71,7 +70,7 @@ class GameSocketListener {
       data["remainingSeconds"],
     );
   }
-
+ 
   void dispose() {
     SocketService.socket.off("positionsUpdated");
     SocketService.socket.off("playerCaught");

@@ -44,7 +44,7 @@ Future<Widget> resolveStartScreen() async {
   PlayerData.playerName = name;
   PlayerData.playerId = playerId ?? "";
 
-  SocketService.joinGame(code);
+  SocketService.joinGame(code, PlayerData.playerId);
 
   final state = await ApiService.getGameState(
     code,

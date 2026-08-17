@@ -47,9 +47,9 @@ class _LobbyScreenState
 
     loadGame();
 
-    SocketService.socket.emit(
-      "joinLobby",
+    SocketService.joinGame(
       widget.gameCode,
+      PlayerData.playerId,
     );
 
     SocketService.socket.on(

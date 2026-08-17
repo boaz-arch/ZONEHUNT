@@ -1,48 +1,65 @@
 const express = require("express");
-
+ 
 const gameStore = require("../store/gameStore");
 const { loadGame, requireHost } = require("../middleware/game");
 const { assignRoles } = require("../gameLogic/roles");
 const { startZoneShrinking } = require("../gameLogic/zoneShrinking");
 const { startRedZoneSystem } = require("../gameLogic/redZone");
-
-
+const { eliminatePlayer } = require("../gameLogic/elimination");
+ 
 function buildGameplayRouter(io) {
   const router = express.Router();
-
+ 
   router.post("/update-position", loadGame, (req, res) => {
-
+ 
     const { playerId, lat, lng } = req.body;
-
+ 
     const player = req.game.players.find((p) => p.id === playerId);
 
     if (!player) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({
+        success: false,
+      });
     }
 
+    if (
+      req.game.state !== "hidePhase" &&
+      req.game.state !== "gameplay"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Game not active",
+      });
+    }
+
+    if (player.caught) {
+      return res.status(400).json({
+        success: false,
+        message: "Player caught",
+      });
+    }
+ 
     player.position = {
       lat,
       lng,
       lastUpdate: Date.now(),
     };
-
-
-
+ 
     io.to(req.gameCode).emit(
       "positionsUpdated", 
       req.game.players
     );
-
+ 
     res.json({ success: true });
   });
-
+ 
   router.get("/positions/:code", (req, res) => {
     const game = gameStore.getGame(req.params.code);
-
+ 
     if (!game) {
       return res.status(404).json({ success: false });
     }
-
+ 
     res.json(
       game.players.map((p) => ({
         id: p.id,
@@ -53,7 +70,7 @@ function buildGameplayRouter(io) {
       })),
     );
   });
-
+ 
   router.post(
     "/start-game",
     loadGame,
@@ -61,72 +78,91 @@ function buildGameplayRouter(io) {
     (req, res) => {
       const game = req.game;
       const gameCode = req.gameCode;
-
+ 
       if (game.state !== "lobby") {
         return res.status(400).json({
           success: false,
           message: "Game already started",
         });
       }
-
+ 
       assignRoles(game);
-
+ 
       game.state = "hidePhase";
-
+ 
       game.zoneState = {
         currentZoneNumber: 1,
-
+ 
         currentCenterLat: game.zone.centerLat,
         currentCenterLng: game.zone.centerLng,
-
+ 
         currentRadius: game.settings.startRadius,
-
+ 
         nextCenterLat: null,
         nextCenterLng: null,
         nextRadius: null,
-
+ 
         phase: "waiting",
         phaseEndsAt: null,
       };
 
+      game.gameplayStarted = false;
+ 
       game.hidePhaseEndsAt =
         Date.now() + game.settings.hideTime * 60 * 1000;
-
+ 
       function beginGameplay(currentGame) {
-        currentGame.state = "gameplay";
+        if (currentGame.gameplayStarted) {
+          return;
+        }
 
+        currentGame.gameplayStarted = true;
+        currentGame.state = "gameplay";
+ 
         currentGame.nextZoneStartsAt =
           Date.now() + currentGame.settings.zoneWaitTime * 60 * 1000;
-
+ 
         io.to(gameCode).emit("zoneTimerUpdated", {
           phase: "NEXT SHRINK",
           phaseEndsAt: null,
         });
-
+ 
         startZoneShrinking(gameCode, io);
         startRedZoneSystem(gameCode, io);
-
+ 
         gameStore.registerTimer(
           gameCode,
           setInterval(() => {
-
+ 
             const game =
               gameStore.getGame(gameCode);
-
+ 
             if (!game) return;
-
+ 
             if (game.state !== "gameplay") {
               return;
             }
-
+ 
             const {
               distanceMeters,
             } = require("../utils/geo");
-
+ 
             for (const player of game.players) {
-
+ 
               if (player.caught) continue;
 
+              if (player.caught) {
+                io.to(gameCode).emit(
+                  "outsideZoneUpdated",
+                  {
+                    playerId: player.id,
+                    remainingSeconds: null,
+                  },
+                );
+
+                continue;
+              }
+              
               if (
                 !player.position ||
                 player.position.lat == null ||
@@ -134,24 +170,24 @@ function buildGameplayRouter(io) {
               ) {
                 continue;
               }
-
+ 
               let zoneLat =
                 game.zoneState.currentCenterLat;
-
+ 
               let zoneLng =
                 game.zoneState.currentCenterLng;
-
+ 
               let zoneRadius =
                 game.zoneState.currentRadius;
-
+ 
               if (
                 game.zoneState.shrinkStartedAt &&
                 game.zoneState.shrinkEndsAt &&
                 game.zoneState.nextRadius != null
               ) {
-
+ 
                 const now = Date.now();
-
+ 
                 const progress =
                   Math.min(
                     1,
@@ -167,7 +203,7 @@ function buildGameplayRouter(io) {
                       ),
                     ),
                   );
-
+ 
                 zoneRadius =
                   game.zoneState.shrinkStartRadius +
                   (
@@ -175,7 +211,7 @@ function buildGameplayRouter(io) {
                     game.zoneState.shrinkStartRadius
                   ) *
                   progress;
-
+ 
                 zoneLat =
                   game.zoneState.shrinkStartCenterLat +
                   (
@@ -183,7 +219,7 @@ function buildGameplayRouter(io) {
                     game.zoneState.shrinkStartCenterLat
                   ) *
                   progress;
-
+ 
                 zoneLng =
                   game.zoneState.shrinkStartCenterLng +
                   (
@@ -192,7 +228,7 @@ function buildGameplayRouter(io) {
                   ) *
                   progress;
               }
-
+ 
               const distance =
                 distanceMeters(
                   player.position.lat,
@@ -200,15 +236,15 @@ function buildGameplayRouter(io) {
                   zoneLat,
                   zoneLng,
                 );
-
+ 
               const outsideZone =
                 distance > zoneRadius;
-
+ 
               if (!outsideZone) {
-
+ 
                 player.outsideZoneSince =
                   null;
-
+ 
                 io.to(gameCode).emit(
                   "outsideZoneUpdated",
                   {
@@ -216,23 +252,23 @@ function buildGameplayRouter(io) {
                     remainingSeconds: null,
                   },
                 );
-
+ 
                 continue;
               }
-
+ 
               if (!player.outsideZoneSince) {
                 player.outsideZoneSince =
                   Date.now();
               }
-
+ 
               const elapsedMs =
                 Date.now() -
                 player.outsideZoneSince;
-
+ 
               const limitMs =
                 game.settings.outsideZoneTime *
                 1000;
-
+ 
               const remainingSeconds =
                 Math.max(
                   0,
@@ -240,7 +276,7 @@ function buildGameplayRouter(io) {
                     (limitMs - elapsedMs) / 1000,
                   ),
                 );
-
+ 
               io.to(gameCode).emit(
                 "outsideZoneUpdated",
                 {
@@ -248,56 +284,22 @@ function buildGameplayRouter(io) {
                   remainingSeconds,
                 },
               );
-
+ 
               if (
                 elapsedMs < limitMs
               ) {
                 continue;
               }
-
-              player.caught = true;
-
-              player.outsideZoneSince =
-                null;
-
-              io.to(gameCode).emit(
-                "playerCaught",
-                {
-                  playerId: player.id,
-                  players: game.players,
-                },
+ 
+              eliminatePlayer(
+                gameCode,
+                player.id,
+                io,
               );
-
-              const aliveHiders =
-                game.players.filter(
-                  (p) =>
-                    p.role === "hider" &&
-                    !p.caught,
-                );
-
-              if (
-                aliveHiders.length === 0
-              ) {
-
-                game.state =
-                  "ended";
-
-                gameStore.clearGameTimers(
-                  gameCode,
-                );
-
-                io.to(gameCode).emit(
-                  "gameEnded",
-                  {
-                    winner:
-                      "Hunters",
-                  },
-                );
-              }
             }
           }, 1000),
         );
-
+ 
         io.to(gameCode).emit("gameplayStarted", {
           zone: {
             centerLat: currentGame.zoneState.currentCenterLat,
@@ -307,9 +309,9 @@ function buildGameplayRouter(io) {
           zoneState: currentGame.zoneState,
         });
       }
-
+ 
       const hideMs = game.settings.hideTime * 60 * 1000;
-
+ 
       if (hideMs <= 0) {
         beginGameplay(game);
       } else {
@@ -326,48 +328,34 @@ function buildGameplayRouter(io) {
           }, hideMs),
         );
       }
-
+ 
       io.to(gameCode).emit("gameStarted", game);
-
+ 
       res.json({ success: true });
     },
   );
-
+ 
   router.post("/mark-caught", loadGame, (req, res) => {
     const { playerId } = req.body;
     const game = req.game;
     const gameCode = req.gameCode;
-
+ 
     const player = game.players.find((p) => p.id === playerId);
-
+ 
     if (!player) {
       return res.status(404).json({ success: false });
     }
-
-    player.caught = true;
-
-    const aliveHiders = game.players.filter(
-      (p) => p.role === "hider" && !p.caught,
+ 
+    const success = eliminatePlayer(
+      gameCode,
+      playerId,
+      io,
     );
 
-    if (aliveHiders.length === 0) {
-      game.state = "ended";
-      gameStore.clearGameTimers(gameCode);
-
-      io.to(gameCode).emit("gameEnded", {
-        winner: "Hunters",
-      });
-    }
-
-    io.to(gameCode).emit("playerCaught", {
-      playerId,
-      players: game.players,
-    });
-
-    res.json({ success: true });
+    res.json({ success });
   });
-
+ 
   return router;
 }
-
+ 
 module.exports = buildGameplayRouter;

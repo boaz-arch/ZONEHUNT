@@ -10,10 +10,16 @@ class SocketService {
     },
   );
 
-  static void joinGame(String gameCode) {
+  static void joinGame(
+    String gameCode,
+    String playerId,
+  ) {
     socket.emit(
       "joinLobby",
-      gameCode,
+      {
+        "gameCode": gameCode,
+        "playerId": playerId,
+      },
     );
   }
 }

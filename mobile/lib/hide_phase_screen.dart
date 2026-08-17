@@ -511,4 +511,3 @@ class _HidePhaseScreenState
     );
   }
 }
-            
